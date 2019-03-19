@@ -19,13 +19,14 @@
 
 		#page {
 			color: #fff;
+            padding:5px;
 			background: #458588;
 		}
 
 		#bar {
 			text-align: center;
 			background: #073642;
-			padding: 3px;
+			padding: 8px 0;
 			margin: 5px;
 		}
 
@@ -55,7 +56,7 @@
 		#history {
 			text-align: left;
 			background: #073642;
-			padding: 5px;
+			padding: 8px;
 			margin: 5px;
 		}
 
@@ -73,15 +74,15 @@
 
 		#history ul li {
 			list-style-type: none;
-			margin: 3px;
-			padding: 3px;
+			margin: 8px 0;
+			padding: 5px;
 		}
 	</style>
 </head>
 
 <body>
 	<div id="page">
-		<h2>Klotski</h2>
+		<h3>Klotski</h3>
 		<div id="bar">
 			<span title="First" class="button" onclick="selectRound(Number.NEGATIVE_INFINITY)">|&lt;&lt;</span>
 			<span title="Prev" class="button" onclick="selectRound(-1)">&lt;&lt;</span>
@@ -376,7 +377,8 @@
 
 		function init() {
 			startAt = [0, 0];
-			Board.addEventListener('touchstart', touchStart);
+            Board.addEventListener('touchstart', touchStart);
+            Board.addEventListener('touchmove',function(event){event.preventDefault();})
 			Board.addEventListener('touchend', touchEnd);
 			Board.addEventListener('click', move);
 			document.addEventListener('keydown', ArrowKeyHandle);
