@@ -4,23 +4,27 @@
 <head>
     <title>Klotski Puzzle</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
 
     <style>
         body {
-            padding: 10px;
+            width: 350px;
+            text-align: center;
+            margin: 0px auto;
+            padding: 2px;
             color: #fff;
             background: #458588;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
+            font-size: 10px;
         }
 
         #bar {
+            text-align: left;
             background: #073642;
             padding: 3px;
             margin: 3px 5px;
-            line-height: 28px;
-            width: 395px;
+            line-height: 20px;
+            width: 340px;
         }
 
         #bar span {
@@ -42,14 +46,10 @@
             color: #000;
         }
 
-        #rLbl {
-            width: 75px;
-            margin-left: 3px;
-        }
-
+        #rLbl,
         #sLbl {
-            width: 60px;
-            margin: 0px 5px;
+            width: 45px;
+            margin: 0px 3px;
         }
 
         #board {
@@ -57,18 +57,13 @@
             background: #eee8d5;
         }
 
-        #history,
-        #notice {
+        #history{
+            text-align: left;
             background: #073642;
-            padding: 15px;
+            padding: 5px;
             margin: 2px 5px;
-            width: 390px;
-            line-height: 28px;
-        }
-
-        #history {
-            height: 395px;
-            overflow: auto;
+            width: 330px;
+            line-height: 24px;
         }
 
         #history span.button {
@@ -94,41 +89,34 @@
 </head>
 
 <body>
-    <div style="float:left;">
-        <div id='bar'>
-            <span title='First' class='button' onclick='selectRound(Number.NEGATIVE_INFINITY)'>|&#9668;&#9668;</span>
-            <span title='Prev' class='button' onclick='selectRound(-1)'>&#9668;&#9668;</span>
-            <span id='rLbl'>ROUND: 001</span>
-            <span title='Next' class='button' onclick='selectRound(1)'>&#9658;&#9658;</span>
-            <span title='Last' class='button' onclick='selectRound(Number.POSITIVE_INFINITY)'>&#9658;&#9658;|</span>
-            <div style='float:right;'>
-                <span id='sLbl'>STEP: 0</span>
-                <span id='rBtn' title="Reset" class='button' onclick='reset()'>RESET</span>
-            </div>
-        </div>
 
-        <canvas id='board' width='401' height='501'></canvas>
-    </div>
-
-    <div style="float:left;">
-        <div id="notice">
-            <span>Notice: All features enabled in Chrome browser, support
-                arrow keys or 'A/S/D/W' to move the (mouse) picked
-                block. Contact: chufazheng@126.com</span>
-        </div>
-        <div id='history'>
-
-            <span>RECORD:</span><span class='button' style='float: right'
-                onclick='javascript:if(true==confirm("Delete all records?"))clearStorage();'>Delete</span>
-            <ul id='records'></ul>
-
+    <div id='bar'>
+        <span title='First' class='button' onclick='selectRound(Number.NEGATIVE_INFINITY)'>|&#9668;&#9668;</span>
+        <span title='Prev' class='button' onclick='selectRound(-1)'>&#9668;&#9668;</span>
+        <span id='rLbl'>R: 001</span>
+        <span title='Next' class='button' onclick='selectRound(1)'>&#9658;&#9658;</span>
+        <span title='Last' class='button' onclick='selectRound(Number.POSITIVE_INFINITY)'>&#9658;&#9658;|</span>
+        <div style='float:right;'>
+            <span id='sLbl'>S: 0</span>
+            <span id='rBtn' title="Reset" class='button' onclick='reset()'>RESET</span>
         </div>
     </div>
+
+    <canvas id='board' width='341' height='426'></canvas>
+
+    <div id='history'>
+        <span>RECORD:</span><span class='button' style='float: right'
+            onclick='javascript:if(true==confirm("Delete all records?"))clearStorage();'>Delete</span>
+        <ul id='records'></ul>
+
+    </div>
+
     <script>
 
         'use strict';
 
-        const UNIT = 100;
+        const UNIT = 85;
+        const THRESHOLD = 500;
         const Board = document.getElementById('board');
         const RoundLabel = document.getElementById('rLbl');
         const StepLabel = document.getElementById('sLbl');
@@ -136,8 +124,8 @@
         const Context = Board.getContext('2d');
         const BW = [0, 1, 1, 2, 2];
         const BH = [0, 1, 2, 1, 2];
-        
-        
+
+
         const DATA = [
             [2, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 2, 2, 1, 1, 2, 1, 0, 0, 1],
             [2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1, 2, 1, 1, 2, 2, 0, 0, 2],
@@ -396,11 +384,12 @@
         ];
 
 
-        var player, frame, round, roundString, step, path, map, solved, target;
+        var player, frame, round, roundString, step, path, map, solved, target, startAt;
 
         function init() {
-            Board.addEventListener('click', move);
-            document.addEventListener('keydown', ArrowKeyHandle);
+            startAt = [0, 0];
+            Board.addEventListener('touchstart', touchStart);
+            Board.addEventListener('touchend', touchEnd);
             player = null;
             frame = 0;
             round = getRound();
@@ -412,13 +401,13 @@
             if (player !== null) {
                 stopPlayer();
             }
-            target = [0, 0];
+            target = [-1, -1];
             solved = false;
             step = -1;
             updateStep();
             path = [];
             map = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
-            roundString = 'ROUND: ' + ('000' + (parseInt(round) + 1)).slice(-3);
+            roundString = 'R: ' + ('000' + (parseInt(round) + 1)).slice(-3);
             RoundLabel.innerText = roundString;
             Context.clearRect(0, 0, 4 * UNIT, 5 * UNIT);
             Context.fillStyle = '#fb4934';
@@ -478,7 +467,7 @@
         }
 
         function updateStep() {
-            StepLabel.innerText = 'STEP: ' + (++step);
+            StepLabel.innerText = 'S: ' + (++step);
         }
 
         function logMove(row, col, dir) {
@@ -501,15 +490,15 @@
                     recorder = [recorder];
                 RecordList.innerHTML = '';
                 recorder.sort(function (a, b) {
-                    if (parseInt(a._r.slice(-3)) > parseInt(b._r.slice(-3)))
+                    if (parseInt(a._r) > parseInt(b._r))
                         return 1;
                     else {
                         return -1;
                     }
                 })
                 for (let r of recorder) {
-                    let round = parseInt((r._r).slice(-3)) - 1;
-                    let msg = '[' + r._r + '][STEP: ' + r._s + '][' + formatDate(r._t) + ']';
+                    let round = parseInt(r._r);
+                    let msg = '[ROUND:' + (round + 1) + '][STEP:' + r._s + '][' + formatDate(r._t) + ']';
                     msg += '<span class="button" onclick="StartPlayer(' + round + ',this)">&#9658;</span>'
                     let entry = document.createElement('LI')
                     entry.innerHTML = msg;
@@ -531,8 +520,8 @@
             round = r;
             let key = '_p' + r;
             let p = JSON.parse(localStorage.getItem(key));
-            Board.removeEventListener('click', move);
-            document.removeEventListener('keydown', ArrowKeyHandle);
+            Board.removeEventListener('touchstart', touchStart);
+            Board.removeEventListener('touchend', touchEnd);
             if ((btn.innerHTML).charCodeAt() == 9658) {
                 btn.innerHTML = '&#10074;&#10074;';
                 if (frame == 0) {
@@ -567,8 +556,8 @@
 
         function stopPlayer() {
             clearInterval(player);
-            Board.addEventListener('click', move);
-            document.addEventListener('keydown', ArrowKeyHandle);
+            Board.addEventListener('touchstart', touchStart);
+            Board.addEventListener('touchend', touchEnd);
             player = null;
             frame = 0;
             let playerButtons = document.querySelectorAll('li span.button')
@@ -579,27 +568,55 @@
             }
         }
 
-        function move(event) {
-            if (solved) return;
-            let col = parseInt((event.clientX - Board.offsetLeft) / UNIT);
-            let row = parseInt((event.clientY - Board.offsetTop) / UNIT);
-            let t_row = target[0];
-            let t_col = target[1];
-            let t_type = map[t_row][t_col];
-            let cellClicked = map[row][col];
-            if (cellClicked == 0) {
-                if (col < t_col && row >= t_row && row < t_row + BH[t_type]) {
-                    moveLeft(t_row, t_col);
-                } else if (col >= t_col + BW[t_type] && row >= t_row && row < t_row + BH[t_type]) {
-                    moveRight(t_row, t_col);
-                } else if (row < t_row && col >= t_col && col < t_col + BW[t_type]) {
-                    moveUp(t_row, t_col);
-                } else if (row >= t_row + BH[t_type] && col >= t_col && col < t_col + BW[t_type]) {
-                    moveDown(t_row, t_col);
+        function touchStart(event) {
+            event.preventDefault();
+            startAt = [event.changedTouches[0].clientX, event.changedTouches[0].clientY];
+        }
+
+        function touchEnd(event) {
+            event.preventDefault();
+            let x = event.changedTouches[0].clientX;
+            let y = event.changedTouches[0].clientY;
+            let startCellCol = parseInt((startAt[0] - Board.offsetLeft) / UNIT);
+            let startCellRow = parseInt((startAt[1] - Board.offsetTop) / UNIT);
+            let startCellType = map[startCellRow][startCellCol];
+            if (startCellType == 0) {
+                // touch starts on blank, deal it as move toward blank.
+                if (target[0] == -1) {
+                    return;
+                }
+                let targetType = map[target[0]][target[1]];
+                if (startCellCol < target[1] && startCellRow >= target[0] && startCellRow < target[0] + BH[targetType]) {
+                    moveLeft(target[0],target[1]);
+                } else if (startCellCol >= target[1] + BW[targetType] && startCellRow >= target[0] && startCellRow < target[0] + BH[targetType]) {
+                    moveRight(target[0],target[1]);
+                } else if (startCellRow < target[0] && startCellCol >= target[1] && startCellCol < target[1] + BW[targetType]) {
+                    moveUp(target[0],target[1]);
+                } else if (startCellRow >= target[0] + BH[targetType] && startCellCol >= target[1] && startCellCol < target[1] + BW[targetType]) {
+                    moveDown(target[0],target[1]);
                 }
                 return;
             }
-            target = findBlock(row, col, cellClicked);
+            target = findBlock(startCellRow, startCellCol, startCellType);
+            let squareDistance = (x - startAt[0]) * (x - startAt[0]) - (y - startAt[1]) * (y - startAt[1]);
+            if (squareDistance < -THRESHOLD || squareDistance > THRESHOLD) {
+                // deal it as drag.
+                if ((x - startAt[0]) * (x - startAt[0]) > (y - startAt[1]) * (y - startAt[1])) {
+                    if ((x - startAt[0]) * (x - startAt[0]) <= THRESHOLD)
+                        return;
+                    if (x < startAt[0]) {
+                        moveLeft(target[0], target[1]);
+                    } else {
+                        moveRight(target[0], target[1]);
+                    }
+                } else if ((y - startAt[1]) * (y - startAt[1]) > THRESHOLD) {
+                    if (y < startAt[1]) {
+                        moveUp(target[0], target[1]);
+                    } else {
+                        moveDown(target[0], target[1]);
+                    }
+                }
+            }
         }
 
         function check() {
@@ -608,7 +625,7 @@
                 drawBlock(3, 1, 4);
                 Context.fillStyle = '#fabd2f';
                 Context.font = "16px 'Courier new'";
-                Context.fillText('SOLVED!', 168, 400);
+                Context.fillText('SOLVED!', 2*UNIT-35, 4*UNIT);
                 solved = true;
                 let recorder = JSON.parse(localStorage.getItem('records'));
                 if (recorder !== null) {
@@ -617,7 +634,7 @@
                     }
                     let find = false;
                     for (let i = 0; i < recorder.length; i++) {
-                        if (recorder[i]._r == roundString) {
+                        if (recorder[i]._r == round) {
                             find = true;
                             if (recorder[i]._s > step) {
                                 recorder[i]._s = step;
@@ -626,11 +643,11 @@
                         }
                     }
                     if (!find) {
-                        recorder.push({ '_r': roundString, '_s': step, '_t': (new Date().getTime()) })
+                        recorder.push({ '_r': round, '_s': step, '_t': (new Date().getTime()) })
                         localStorage.setItem('records', JSON.stringify(recorder));
                     }
                 } else {
-                    localStorage.setItem('records', JSON.stringify({ '_r': roundString, '_s': step, '_t': (new Date().getTime()) }));
+                    localStorage.setItem('records', JSON.stringify({ '_r': round, '_s': step, '_t': (new Date().getTime()) }));
                 }
                 let key = '_p' + round;
                 localStorage.setItem(key, JSON.stringify(path));
@@ -843,28 +860,6 @@
             logMove(row, col, 3);
             if (bType == 4) {
                 check();
-            }
-        }
-
-        function ArrowKeyHandle(event) {
-            event.preventDefault();
-            if (solved) return;
-            switch (event.keyCode) {
-                case 37:
-                case 65:
-                    moveLeft(target[0], target[1]);
-                    break;
-                case 38:
-                case 87:
-                    moveUp(target[0], target[1]);
-                    break;
-                case 39:
-                case 68:
-                    moveRight(target[0], target[1]);
-                    break;
-                case 40:
-                case 83:
-                    moveDown(target[0], target[1]);
             }
         }
 
