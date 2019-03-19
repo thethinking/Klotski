@@ -4,13 +4,13 @@
 <head>
     <title>Klotski Puzzle</title>
     <meta charset="utf-8">
-    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <style>
         body {
             width: 100%;
-            height:100%;
-            overflow: hidden;          
+            max-width: 350px;
+            height: 100%;
+            overflow: hidden;
             text-align: center;
             margin: 0px auto;
             padding: 2px;
@@ -61,8 +61,8 @@
             margin: 2px 5px;
             width: 330px;
             line-height: 24px;
-            max-height:150px;
-            overflow:auto;
+            max-height: 150px;
+            overflow: auto;
         }
 
         #history span.button {
@@ -384,6 +384,8 @@
             startAt = [0, 0];
             Board.addEventListener('touchstart', touchStart);
             Board.addEventListener('touchend', touchEnd);
+            Board.addEventListener('click', move);
+            document.addEventListener('keydown', ArrowKeyHandle);
             player = null;
             frame = 0;
             round = getRound();
@@ -516,6 +518,8 @@
             let p = JSON.parse(localStorage.getItem(key));
             Board.removeEventListener('touchstart', touchStart);
             Board.removeEventListener('touchend', touchEnd);
+            Board.removeEventListener('click', move);
+            document.removeEventListener('keydown', ArrowKeyHandle);
             if ((btn.innerHTML).charCodeAt() == 9658) {
                 btn.innerHTML = '&#10074;&#10074;';
                 if (frame == 0) {
@@ -552,6 +556,8 @@
             clearInterval(player);
             Board.addEventListener('touchstart', touchStart);
             Board.addEventListener('touchend', touchEnd);
+            Board.addEventListener('click', move);
+            document.addEventListener('keydown', ArrowKeyHandle);
             player = null;
             frame = 0;
             let playerButtons = document.querySelectorAll('li span.button')
@@ -560,6 +566,29 @@
                     btn.innerHTML = '&#9658;';
                 }
             }
+        }
+        function move(event) {
+            event.preventDefault();
+            if (solved) return;
+            let col = parseInt((event.clientX - Board.offsetLeft) / UNIT);
+            let row = parseInt((event.clientY - Board.offsetTop) / UNIT);
+            let cellClicked = map[row][col];
+            if (cellClicked == 0 && target[0] != -1) {
+                let t_row = target[0];
+                let t_col = target[1];
+                let t_type = map[t_row][t_col];
+                if (col < t_col && row >= t_row && row < t_row + BH[t_type]) {
+                    moveLeft(t_row, t_col);
+                } else if (col >= t_col + BW[t_type] && row >= t_row && row < t_row + BH[t_type]) {
+                    moveRight(t_row, t_col);
+                } else if (row < t_row && col >= t_col && col < t_col + BW[t_type]) {
+                    moveUp(t_row, t_col);
+                } else if (row >= t_row + BH[t_type] && col >= t_col && col < t_col + BW[t_type]) {
+                    moveDown(t_row, t_col);
+                }
+                return;
+            }
+            target = findBlock(row, col, cellClicked);
         }
 
         function touchStart(event) {
@@ -855,6 +884,27 @@
             logMove(row, col, 3);
             if (bType == 4) {
                 check();
+            }
+        }
+        function ArrowKeyHandle(event) {
+            event.preventDefault();
+            if (solved) return;
+            switch (event.keyCode) {
+                case 37:
+                case 65:
+                    moveLeft(target[0], target[1]);
+                    break;
+                case 38:
+                case 87:
+                    moveUp(target[0], target[1]);
+                    break;
+                case 39:
+                case 68:
+                    moveRight(target[0], target[1]);
+                    break;
+                case 40:
+                case 83:
+                    moveDown(target[0], target[1]);
             }
         }
 
