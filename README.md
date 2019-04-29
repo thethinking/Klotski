@@ -2,4 +2,4 @@
 
 Klotski puzzle online. Customize support, solutions demo.
 
-(https://thethinking.github.io/klotski/)[https://thethinking.github.io/klotski/]
+(Klotski Puzzle Online)[https://thethinking.github.io/Klotski/]
