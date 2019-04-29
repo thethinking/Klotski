@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Klotski Puzzle</title>
+    <meta charset="utf-8">
+    <meta name="description" content="Klotski Puzzle Online, Klotski Puzzle Solutions.">
+    <meta name="viewport" content="width=device-width, initial-scale=1 user-scalable=0">
+    <style>
+        * {
+            padding: 0;
+        }
+
+        body {
+            width: 360px;
+            background: #458588;
+            text-align: center;
+            font-family: "droid sans fallback";
+            font-size: 12px;
+            margin: auto;
+        }
+
+        .bar {
+            background: #073642;
+            padding: 8px 0;
+        }
+
+        .bar span,
+        .bar a {
+            color: #fff;
+            display: inline-block;
+            padding: 10px;
+            text-decoration: none;
+        }
+
+        .bar .button {
+            background: #93a1a1;
+            margin: 2px;
+            cursor: pointer;
+        }
+
+        #history {
+            text-align: left;
+            background: #eee8d5;
+            padding: 15px 5px;
+        }
+
+        #records {
+            margin: 5px;
+            padding: 3px;
+        }
+
+        #records li {
+            list-style-type: none;
+            margin: 8px 0;
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <div class="bar">
+            <span>History: </span>
+            <span class="button" onclick="clearStorage()">Delete</span>
+        </div>
+        <div id="history">
+            <ul id="records"></ul>
+            <hr>
+            *Demostration support in page 'Solutions'.
+        </div>
+        <div class="bar">
+            <a href="index.html" class="button">Homepage</a>
+            <a href="game.html" class="button">Puzzle</a>
+            <a href="customize.html" class="button">Customize</a>
+            <a href="solution.html" class="button">Solutions</a>
+        </div>
+    </div>
+
+    <script>
+
+        'use strict';
+
+        const RecordList = document.getElementById('records');
+
+        function clearStorage() {
+            localStorage.removeItem("records");
+            RecordList.innerHTML = '';
+        }
+
+        function formatDate(t) {
+            let date = new Date(parseInt(t));
+            let m = ('0' + (date.getMonth() + 1)).slice(-2);
+            let d = ('0' + date.getDate()).slice(-2);
+            let h = ('0' + date.getHours()).slice(-2);
+            let mm = ('0' + date.getMinutes()).slice(-2);
+            return date.getFullYear() + '-' + m + '-' + d + ' ' + h + ':' + mm;
+        }
+
+        function loadRecords() {
+            let recorder = JSON.parse(localStorage.getItem('records'));
+            if (recorder !== null) {
+                if (!Array.isArray(recorder))
+                    recorder = [recorder];
+                RecordList.innerHTML = '';
+                recorder.sort(function (a, b) {
+                    if (parseInt(a._r) > parseInt(b._r))
+                        return 1;
+                    else {
+                        return -1;
+                    }
+                });
+                for (let r of recorder) {
+                    let round = parseInt(r._r);
+                    let rStr = ("00" + (round + 1)).slice(-3);
+                    let stepStr = ("00" + r._s).slice(-3);
+                    let msg = '[R: ' + rStr + '] [M: ' + stepStr + '] [' + formatDate(r._t) + ']';
+                    let entry = document.createElement('LI');
+                    entry.innerHTML = msg;
+                    RecordList.appendChild(entry);
+                }
+            }
+        }
+
+        loadRecords();
+
+    </script>
+</body>
+
+</html>

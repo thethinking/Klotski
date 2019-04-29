@@ -2,735 +2,85 @@
 <html>
 
 <head>
-	<meta charset="utf-8">
-	<title>Klotski</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1 user-scalable=0">
+    <title>Klotski Puzzle</title>
+    <meta charset="utf-8">
+    <meta name="description" content="Klotski Puzzle Online, Klotski Puzzle Solutions.">
+    <meta name="viewport" content="width=device-width, initial-scale=1 user-scalable=0">
 	<style>
 		* {
-			margin: 0;
 			padding: 0;
 		}
 
 		body {
 			width: 360px;
-			margin: 0 auto;
-			text-align: center;
 			background: #458588;
+			text-align: center;
 			font-family: "droid sans fallback";
-			font-size: 12px;
+			font-size: 14px;
+			margin: auto;
 		}
 
-		#page {
+		.headline {
+			margin: 10px;
 			color: #fff;
-			padding: 5px;
-	}
+			font-size: 16px;
+			font-weight: bold;
+		}
 
-		#bar {
-			text-align: center;
+		.bar {
 			background: #073642;
 			padding: 8px 0;
-			margin: 5px;
 		}
 
-		#bar span {
-			display: inline-block;
-		}
-
-
-		#bar span.button {
-			background: #93a1a1;
-			margin: 0px;
-			padding: 3px 8px;
-
-		}
-
-		#round {
-			width: 65px;
-		}
-
-		#step {
-			width: 60px;
-		}
-
-		#board {
+		.info {
+			text-align: left;
 			background: #eee8d5;
+			line-height: 30px;
+			margin-top: 2px;
+			padding: 15px;
 		}
 
-		.button {
+		.bar span,
+		.bar a {
+			color: #fff;
+			display: inline-block;
+			padding: 10px;
+			text-decoration: none;
+		}
+
+		.bar .button {
+			background: #93a1a1;
+			margin: 1px;
 			cursor: pointer;
+
+		}
+
+		span.strong {
+			font-weight: bold;
 		}
 	</style>
 </head>
 
 <body>
-	<div id="page">
-		<h3>Klotski</h3>
-		<div id="bar">
-			<span title="First round" class="button" onclick="selectRound(Number.NEGATIVE_INFINITY)">|&lt;&lt;</span>
-			<span title="Prev round" class="button" onclick="selectRound(-1)">&lt;&lt;</span>
-			<span id="round">R: 001</span>
-			<span title="Next round" class="button" onclick="selectRound(1)">&gt;&gt;</span>
-			<span title="Last round" class="button" onclick="selectRound(Number.POSITIVE_INFINITY)">&gt;&gt;|</span>
-			<span id="step">S: 0</span>
-			<span title="Reset" class="button" onclick="reset()">RESET</span>
+	<div>
+		<div class="headline">Klotski Puzzle</div>
+		<div class="bar">
+			<a href="game.html" class="button">Puzzle</a>
+			<a href="records.html" class="button">History</a>
+			<a href="customize.html" class="button">Customize</a>
+			<a href="solution.html" class="button">Solution</a>
 		</div>
-		<canvas id="board" width="321" height="401"></canvas>
+		<div class="info">
+			One day on the end of Feb. 2019, I recalled the puzzle and told to my son, and then I implemented it in browser. During programming, I searched the background of Klotski puzzle from <a
+				href="https://en.wikipedia.org/wiki/Klotski">Wikipedia</a>. Eventually I was attracted by the puzzle. I decided to establish a web page for it with purposes to make it convenient to describe a layout and share the solution.
+			<hr>
+			Features:<br>
+			1）<span class="strong">Keyboard Support</span>. Arrow key or ASDW to move the target block. "[" and "]" for prev and next round.<br>
+			2）<span class="strong">History</span>，save the best record of each round, and show the solution in animation.<br>
+			3）<span class="strong">User-defined layout</span>. Layout description：'0' for blank, '1' for small square, '2' for vertical rectangle, '3' for horizonal rectangle, '4' for the boss. A layout description consists of 20 numbers that corresponds to each cell from left to right and top to bottom. For example, the first round could be described as '24422442233221121001'.<br>
+			4）<span class="strong">Solutions</span>，demonstrate or import or export the solution.
+		</div>
 	</div>
-	<script>
-
-		'use strict';
-
-		const UNIT = 80;
-		const THRESHOLD = 300;
-		const Board = document.getElementById('board');
-		const RoundLabel = document.getElementById('round');
-		const StepLabel = document.getElementById('step');
-		const Context = Board.getContext('2d');
-		const BW = [0, 1, 1, 2, 2];
-		const BH = [0, 1, 2, 1, 2];
-		const DATA = [
-			[2, 2, 0, 2, 2, 2, 0, 2, 2, 2, 4, 4, 2, 2, 4, 4, 1, 1, 1, 1],
-			[2, 2, 1, 1, 2, 2, 2, 2, 4, 4, 2, 2, 4, 4, 2, 1, 1, 0, 2, 0],
-			[2, 0, 4, 4, 2, 2, 4, 4, 1, 2, 2, 1, 1, 1, 2, 2, 3, 3, 0, 2],
-			[2, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 2, 2, 1, 1, 2, 1, 0, 0, 1],
-			[1, 4, 4, 0, 1, 4, 4, 0, 3, 3, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
-			[4, 4, 2, 2, 4, 4, 2, 2, 1, 1, 3, 3, 1, 1, 2, 2, 0, 0, 2, 2],
-			[2, 1, 1, 2, 2, 4, 4, 2, 2, 4, 4, 1, 2, 3, 3, 2, 0, 0, 1, 2],
-			[2, 4, 4, 1, 2, 4, 4, 1, 2, 3, 3, 2, 2, 2, 0, 2, 1, 2, 0, 1],
-			[1, 2, 2, 1, 2, 2, 2, 2, 2, 1, 1, 2, 4, 4, 0, 0, 4, 4, 3, 3],
-			[2, 4, 4, 1, 2, 4, 4, 1, 2, 2, 2, 1, 2, 2, 2, 1, 0, 3, 3, 0],
-			[2, 4, 4, 2, 2, 4, 4, 2, 1, 1, 1, 1, 2, 3, 3, 2, 2, 0, 0, 2],
-			[2, 4, 4, 1, 2, 4, 4, 1, 2, 3, 3, 1, 2, 2, 2, 1, 0, 2, 2, 0],
-			[1, 4, 4, 2, 2, 4, 4, 2, 2, 2, 2, 1, 0, 2, 2, 0, 1, 1, 3, 3],
-			[0, 0, 2, 2, 3, 3, 2, 2, 1, 1, 2, 2, 4, 4, 2, 2, 4, 4, 1, 1],
-			[4, 4, 1, 2, 4, 4, 2, 2, 2, 1, 2, 1, 2, 2, 3, 3, 0, 2, 1, 0],
-			[0, 4, 4, 0, 2, 4, 4, 2, 2, 2, 2, 2, 1, 2, 2, 1, 3, 3, 1, 1],
-			[4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 1, 1, 2, 2, 1, 1, 2, 2, 0, 0],
-			[4, 4, 3, 3, 4, 4, 1, 2, 1, 1, 2, 2, 1, 2, 2, 2, 0, 2, 0, 2],
-			[0, 2, 2, 1, 2, 2, 2, 1, 2, 4, 4, 1, 2, 4, 4, 0, 2, 1, 3, 3],
-			[4, 4, 2, 0, 4, 4, 2, 2, 1, 0, 1, 2, 2, 3, 3, 2, 2, 1, 1, 2],
-			[2, 2, 0, 0, 2, 2, 3, 3, 1, 1, 4, 4, 2, 2, 4, 4, 2, 2, 1, 1],
-			[1, 2, 2, 1, 1, 2, 2, 2, 4, 4, 2, 2, 4, 4, 2, 1, 0, 0, 3, 3],
-			[2, 2, 1, 1, 2, 2, 4, 4, 1, 1, 4, 4, 2, 2, 3, 3, 2, 2, 0, 0],
-			[1, 4, 4, 1, 1, 4, 4, 1, 0, 3, 3, 0, 2, 2, 2, 2, 2, 2, 2, 2],
-			[4, 4, 2, 0, 4, 4, 2, 0, 1, 2, 3, 3, 2, 2, 1, 2, 2, 1, 1, 2],
-			[2, 4, 4, 2, 2, 4, 4, 2, 1, 2, 2, 1, 1, 2, 2, 1, 0, 3, 3, 0],
-			[4, 4, 3, 3, 4, 4, 1, 1, 0, 1, 1, 0, 2, 2, 2, 2, 2, 2, 2, 2],
-			[1, 1, 1, 1, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 2, 2, 0, 0, 2, 2],
-			[4, 4, 2, 2, 4, 4, 2, 2, 0, 1, 0, 1, 2, 2, 3, 3, 2, 2, 1, 1],
-			[2, 4, 4, 1, 2, 4, 4, 2, 3, 3, 1, 2, 2, 0, 1, 2, 2, 0, 1, 2],
-			[2, 0, 4, 4, 2, 2, 4, 4, 1, 2, 2, 0, 1, 1, 2, 2, 3, 3, 1, 2],
-			[2, 1, 1, 2, 2, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 2, 1, 1, 0, 0],
-			[2, 2, 2, 2, 2, 2, 2, 2, 0, 4, 4, 0, 1, 4, 4, 1, 3, 3, 1, 1],
-			[2, 1, 3, 3, 2, 4, 4, 1, 2, 4, 4, 1, 2, 2, 0, 2, 0, 2, 1, 2],
-			[2, 4, 4, 2, 2, 4, 4, 2, 2, 1, 1, 0, 2, 3, 3, 2, 0, 1, 1, 2],
-			[1, 4, 4, 1, 2, 4, 4, 2, 2, 2, 2, 2, 1, 2, 2, 1, 0, 3, 3, 0],
-			[2, 2, 4, 4, 2, 2, 4, 4, 1, 0, 1, 0, 2, 3, 3, 2, 2, 1, 1, 2],
-			[1, 4, 4, 1, 1, 4, 4, 1, 0, 3, 3, 0, 2, 2, 2, 2, 2, 2, 2, 2],
-			[1, 4, 4, 1, 2, 4, 4, 2, 2, 3, 3, 2, 2, 1, 1, 2, 2, 0, 0, 2],
-			[0, 2, 0, 2, 1, 2, 2, 2, 1, 1, 2, 2, 4, 4, 1, 2, 4, 4, 3, 3],
-			[0, 4, 4, 2, 1, 4, 4, 2, 2, 3, 3, 2, 2, 2, 0, 2, 1, 2, 1, 1],
-			[3, 3, 2, 0, 4, 4, 2, 0, 4, 4, 2, 1, 1, 2, 2, 2, 1, 2, 1, 2],
-			[4, 4, 1, 1, 4, 4, 3, 3, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
-			[1, 4, 4, 1, 2, 4, 4, 2, 2, 1, 1, 2, 2, 3, 3, 2, 2, 0, 0, 2],
-			[4, 4, 1, 2, 4, 4, 1, 2, 0, 0, 3, 3, 1, 2, 2, 2, 1, 2, 2, 2],
-			[2, 4, 4, 0, 2, 4, 4, 1, 3, 3, 2, 2, 2, 0, 2, 2, 2, 1, 1, 1],
-			[2, 4, 4, 1, 2, 4, 4, 1, 0, 0, 3, 3, 2, 1, 2, 2, 2, 1, 2, 2],
-			[2, 1, 1, 2, 2, 4, 4, 2, 1, 4, 4, 2, 2, 3, 3, 2, 2, 0, 0, 1],
-			[2, 4, 4, 1, 2, 4, 4, 1, 2, 1, 2, 2, 2, 1, 2, 2, 0, 0, 3, 3],
-			[2, 4, 4, 1, 2, 4, 4, 1, 2, 3, 3, 2, 2, 1, 2, 2, 0, 1, 2, 0],
-			[1, 4, 4, 1, 1, 4, 4, 1, 2, 2, 2, 2, 2, 2, 2, 2, 0, 3, 3, 0],
-			[2, 2, 4, 4, 2, 2, 4, 4, 1, 0, 1, 2, 2, 0, 1, 2, 2, 3, 3, 1],
-			[0, 0, 2, 2, 3, 3, 2, 2, 4, 4, 2, 2, 4, 4, 2, 2, 1, 1, 1, 1],
-			[2, 2, 1, 1, 2, 2, 1, 1, 2, 2, 3, 3, 2, 2, 4, 4, 0, 0, 4, 4],
-			[4, 4, 1, 1, 4, 4, 1, 1, 3, 3, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2],
-			[1, 4, 4, 0, 1, 4, 4, 0, 1, 1, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2],
-			[2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1, 2, 1, 1, 2, 2, 0, 0, 2],
-			[2, 3, 3, 1, 2, 4, 4, 2, 2, 4, 4, 2, 2, 2, 1, 1, 0, 2, 1, 0],
-			[0, 0, 3, 3, 4, 4, 2, 1, 4, 4, 2, 2, 1, 2, 2, 2, 1, 2, 2, 1],
-			[2, 2, 2, 2, 2, 2, 2, 2, 1, 4, 4, 1, 0, 4, 4, 0, 3, 3, 1, 1],
-			[1, 4, 4, 1, 2, 4, 4, 2, 2, 0, 0, 2, 2, 1, 1, 2, 2, 3, 3, 2],
-			[0, 1, 3, 3, 4, 4, 0, 2, 4, 4, 2, 2, 1, 1, 2, 2, 1, 3, 3, 2],
-			[2, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 1, 2, 3, 3, 1, 1, 0, 0, 1],
-			[4, 4, 0, 1, 4, 4, 0, 1, 2, 2, 3, 3, 2, 2, 1, 2, 3, 3, 1, 2],
-			[0, 2, 1, 1, 1, 2, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 3, 3, 1, 0],
-			[2, 2, 1, 1, 2, 2, 3, 3, 2, 4, 4, 0, 2, 4, 4, 1, 0, 3, 3, 1],
-			[1, 4, 4, 2, 1, 4, 4, 2, 1, 1, 3, 3, 3, 3, 2, 2, 0, 0, 2, 2],
-			[4, 4, 1, 1, 4, 4, 1, 2, 0, 0, 2, 2, 3, 3, 2, 2, 1, 3, 3, 2],
-			[0, 1, 1, 1, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 2, 1, 3, 3, 2, 0],
-			[1, 4, 4, 1, 2, 4, 4, 2, 2, 2, 0, 2, 1, 2, 0, 1, 3, 3, 3, 3],
-			[1, 4, 4, 1, 2, 4, 4, 0, 2, 2, 3, 3, 2, 2, 1, 1, 2, 3, 3, 0],
-			[2, 4, 4, 2, 2, 4, 4, 2, 1, 2, 0, 1, 1, 2, 0, 1, 3, 3, 3, 3],
-			[4, 4, 3, 3, 4, 4, 2, 1, 2, 2, 2, 1, 2, 2, 1, 1, 0, 3, 3, 0],
-			[4, 4, 1, 1, 4, 4, 1, 2, 3, 3, 2, 2, 0, 1, 2, 2, 0, 3, 3, 2],
-			[1, 2, 2, 2, 1, 2, 2, 2, 3, 3, 1, 1, 3, 3, 4, 4, 0, 0, 4, 4],
-			[2, 4, 4, 1, 2, 4, 4, 1, 2, 3, 3, 2, 2, 3, 3, 2, 1, 0, 0, 1],
-			[4, 4, 2, 2, 4, 4, 2, 2, 2, 1, 1, 0, 2, 1, 1, 0, 3, 3, 3, 3],
-			[3, 3, 4, 4, 2, 0, 4, 4, 2, 2, 0, 1, 2, 2, 3, 3, 2, 1, 1, 1],
-			[2, 2, 1, 1, 2, 2, 2, 1, 3, 3, 2, 1, 3, 3, 4, 4, 0, 0, 4, 4],
-			[2, 4, 4, 2, 2, 4, 4, 2, 3, 3, 3, 3, 1, 2, 0, 1, 1, 2, 0, 1],
-			[1, 1, 1, 2, 4, 4, 2, 2, 4, 4, 2, 2, 0, 3, 3, 2, 0, 1, 3, 3],
-			[4, 4, 3, 3, 4, 4, 2, 1, 1, 1, 2, 2, 2, 3, 3, 2, 2, 0, 0, 1],
-			[3, 3, 1, 1, 4, 4, 0, 0, 4, 4, 3, 3, 2, 2, 2, 1, 2, 2, 2, 1],
-			[2, 2, 3, 3, 2, 2, 4, 4, 1, 2, 4, 4, 1, 2, 3, 3, 0, 1, 1, 0],
-			[2, 2, 2, 1, 2, 2, 2, 1, 4, 4, 3, 3, 4, 4, 0, 0, 3, 3, 1, 1],
-			[1, 4, 4, 2, 1, 4, 4, 2, 3, 3, 2, 2, 1, 1, 2, 2, 0, 3, 3, 0],
-			[0, 1, 2, 1, 4, 4, 2, 2, 4, 4, 1, 2, 1, 3, 3, 2, 0, 3, 3, 2],
-			[1, 4, 4, 2, 1, 4, 4, 2, 2, 2, 1, 1, 2, 2, 3, 3, 0, 3, 3, 0],
-			[2, 4, 4, 0, 2, 4, 4, 0, 1, 1, 3, 3, 2, 2, 3, 3, 2, 2, 1, 1],
-			[1, 1, 2, 2, 1, 1, 2, 2, 4, 4, 0, 2, 4, 4, 0, 2, 3, 3, 3, 3],
-			[2, 4, 4, 0, 2, 4, 4, 0, 2, 2, 1, 1, 2, 2, 3, 3, 3, 3, 1, 1],
-			[1, 4, 4, 2, 1, 4, 4, 2, 1, 3, 3, 2, 1, 0, 2, 2, 3, 3, 2, 0],
-			[2, 4, 4, 0, 2, 4, 4, 0, 3, 3, 1, 1, 2, 2, 3, 3, 2, 2, 1, 1],
-			[1, 2, 0, 1, 1, 2, 0, 1, 2, 4, 4, 2, 2, 4, 4, 2, 3, 3, 3, 3],
-			[1, 2, 2, 0, 1, 2, 2, 1, 4, 4, 2, 1, 4, 4, 2, 0, 3, 3, 3, 3],
-			[1, 0, 2, 2, 4, 4, 2, 2, 4, 4, 0, 2, 3, 3, 1, 2, 1, 1, 3, 3],
-			[1, 1, 0, 1, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 0, 2, 3, 3, 1, 2],
-			[4, 4, 1, 2, 4, 4, 2, 2, 0, 1, 2, 1, 0, 3, 3, 2, 3, 3, 1, 2],
-			[4, 4, 0, 2, 4, 4, 2, 2, 0, 1, 2, 1, 3, 3, 1, 2, 3, 3, 1, 2],
-			[1, 0, 1, 2, 4, 4, 1, 2, 4, 4, 2, 2, 3, 3, 2, 2, 0, 1, 3, 3],
-			[2, 4, 4, 0, 2, 4, 4, 0, 2, 2, 3, 3, 2, 2, 1, 1, 3, 3, 1, 1],
-			[1, 1, 2, 0, 1, 1, 2, 2, 4, 4, 2, 2, 4, 4, 2, 0, 3, 3, 3, 3],
-			[2, 4, 4, 0, 2, 4, 4, 0, 3, 3, 1, 1, 2, 2, 1, 1, 2, 2, 3, 3],
-			[1, 1, 1, 2, 4, 4, 2, 2, 4, 4, 2, 2, 1, 3, 3, 2, 0, 0, 3, 3],
-			[1, 1, 2, 0, 1, 1, 2, 2, 4, 4, 2, 2, 4, 4, 2, 0, 3, 3, 3, 3],
-			[4, 4, 0, 0, 4, 4, 1, 2, 1, 1, 1, 2, 3, 3, 2, 2, 3, 3, 2, 2],
-			[0, 2, 2, 2, 1, 2, 2, 2, 0, 1, 1, 1, 4, 4, 3, 3, 4, 4, 3, 3],
-			[2, 0, 0, 1, 2, 3, 3, 2, 1, 1, 2, 2, 4, 4, 2, 1, 4, 4, 3, 3],
-			[4, 4, 3, 3, 4, 4, 3, 3, 0, 0, 1, 1, 2, 2, 1, 2, 2, 2, 1, 2],
-			[2, 1, 4, 4, 2, 1, 4, 4, 3, 3, 1, 1, 2, 3, 3, 2, 2, 0, 0, 2],
-			[1, 3, 3, 2, 1, 1, 2, 2, 4, 4, 2, 2, 4, 4, 0, 2, 0, 1, 3, 3],
-			[1, 0, 0, 2, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 1, 2, 1, 1, 3, 3],
-			[2, 1, 1, 0, 2, 2, 4, 4, 0, 2, 4, 4, 2, 1, 3, 3, 2, 3, 3, 1],
-			[2, 1, 2, 2, 2, 0, 2, 2, 0, 4, 4, 1, 1, 4, 4, 1, 3, 3, 3, 3],
-			[0, 2, 1, 1, 2, 2, 2, 1, 2, 1, 2, 0, 3, 3, 4, 4, 3, 3, 4, 4],
-			[3, 3, 4, 4, 2, 1, 4, 4, 2, 2, 3, 3, 0, 2, 2, 1, 1, 0, 2, 1],
-			[0, 2, 1, 2, 1, 2, 0, 2, 2, 1, 4, 4, 2, 1, 4, 4, 3, 3, 3, 3],
-			[2, 4, 4, 1, 2, 4, 4, 1, 3, 3, 1, 1, 2, 3, 3, 2, 2, 0, 0, 2],
-			[3, 3, 2, 1, 1, 1, 2, 2, 0, 4, 4, 2, 1, 4, 4, 2, 3, 3, 0, 2],
-			[2, 4, 4, 0, 2, 4, 4, 0, 1, 1, 1, 1, 2, 2, 3, 3, 2, 2, 3, 3],
-			[4, 4, 0, 2, 4, 4, 1, 2, 3, 3, 2, 1, 2, 0, 2, 1, 2, 3, 3, 1],
-			[0, 1, 1, 0, 1, 2, 3, 3, 1, 2, 4, 4, 2, 2, 4, 4, 2, 2, 3, 3],
-			[4, 4, 0, 2, 4, 4, 0, 2, 2, 3, 3, 1, 2, 1, 2, 1, 3, 3, 2, 1],
-			[1, 2, 4, 4, 1, 2, 4, 4, 3, 3, 1, 2, 3, 3, 2, 2, 1, 0, 2, 0],
-			[1, 4, 4, 0, 1, 4, 4, 1, 2, 3, 3, 1, 2, 0, 2, 2, 3, 3, 2, 2],
-			[4, 4, 0, 1, 4, 4, 0, 1, 2, 1, 3, 3, 2, 1, 2, 2, 3, 3, 2, 2],
-			[2, 2, 2, 1, 2, 2, 2, 1, 3, 3, 1, 1, 3, 3, 4, 4, 0, 0, 4, 4],
-			[0, 2, 2, 2, 0, 2, 2, 2, 1, 1, 1, 1, 4, 4, 3, 3, 4, 4, 3, 3],
-			[2, 2, 1, 2, 2, 2, 1, 2, 3, 3, 1, 1, 3, 3, 4, 4, 0, 0, 4, 4],
-			[4, 4, 0, 2, 4, 4, 1, 2, 0, 1, 2, 1, 3, 3, 2, 2, 3, 3, 1, 2],
-			[2, 2, 0, 2, 2, 2, 0, 2, 1, 4, 4, 1, 1, 4, 4, 1, 3, 3, 3, 3],
-			[1, 3, 3, 2, 2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 2, 0, 1, 1, 0],
-			[2, 1, 1, 1, 2, 2, 3, 3, 2, 2, 0, 1, 2, 0, 4, 4, 3, 3, 4, 4],
-			[1, 4, 4, 1, 2, 4, 4, 2, 2, 3, 3, 2, 3, 3, 3, 3, 0, 1, 1, 0],
-			[1, 4, 4, 1, 1, 4, 4, 1, 2, 2, 3, 3, 2, 2, 3, 3, 0, 3, 3, 0],
-			[4, 4, 1, 1, 4, 4, 2, 1, 3, 3, 2, 1, 3, 3, 2, 0, 3, 3, 2, 0],
-			[0, 1, 1, 0, 3, 3, 3, 3, 2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1],
-			[4, 4, 0, 1, 4, 4, 0, 1, 2, 1, 3, 3, 2, 3, 3, 2, 1, 3, 3, 2],
-			[0, 4, 4, 0, 1, 4, 4, 1, 1, 1, 3, 3, 2, 2, 3, 3, 2, 2, 3, 3],
-			[3, 3, 4, 4, 3, 3, 4, 4, 1, 2, 1, 2, 1, 2, 1, 2, 0, 0, 3, 3],
-			[3, 3, 3, 3, 0, 1, 1, 0, 2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1],
-			[1, 4, 4, 1, 2, 4, 4, 2, 2, 3, 3, 2, 1, 3, 3, 1, 0, 3, 3, 0],
-			[4, 4, 2, 2, 4, 4, 2, 2, 3, 3, 3, 3, 1, 3, 3, 1, 1, 0, 0, 1],
-			[1, 4, 4, 2, 1, 4, 4, 2, 1, 3, 3, 2, 1, 3, 3, 2, 0, 3, 3, 0],
-			[0, 1, 1, 0, 2, 3, 3, 2, 2, 4, 4, 2, 1, 4, 4, 1, 3, 3, 3, 3],
-			[4, 4, 1, 2, 4, 4, 0, 2, 0, 2, 3, 3, 1, 2, 3, 3, 1, 1, 3, 3],
-			[1, 4, 4, 1, 0, 4, 4, 1, 2, 0, 3, 3, 2, 3, 3, 2, 3, 3, 1, 2],
-			[4, 4, 1, 0, 4, 4, 1, 1, 2, 1, 3, 3, 2, 2, 3, 3, 0, 2, 3, 3],
-			[1, 0, 0, 1, 3, 3, 3, 3, 2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1],
-			[4, 4, 1, 1, 4, 4, 3, 3, 0, 3, 3, 1, 2, 3, 3, 2, 2, 0, 1, 2],
-			[0, 4, 4, 0, 2, 4, 4, 2, 2, 3, 3, 2, 3, 3, 3, 3, 1, 1, 1, 1],
-			[0, 4, 4, 1, 2, 4, 4, 1, 2, 1, 3, 3, 2, 1, 3, 3, 2, 0, 3, 3],
-			[0, 3, 3, 0, 1, 3, 3, 1, 2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1],
-			[1, 4, 4, 1, 2, 4, 4, 1, 2, 0, 0, 2, 1, 3, 3, 2, 3, 3, 3, 3],
-			[3, 3, 3, 3, 2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1, 1, 0, 0, 1],
-			[1, 4, 4, 0, 1, 4, 4, 0, 3, 3, 2, 2, 3, 3, 2, 2, 1, 1, 3, 3],
-			[1, 4, 4, 2, 1, 4, 4, 2, 2, 3, 3, 1, 2, 3, 3, 1, 0, 3, 3, 0],
-			[1, 3, 3, 1, 2, 3, 3, 2, 2, 4, 4, 2, 1, 4, 4, 1, 0, 3, 3, 0],
-			[2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1, 3, 3, 3, 3, 1, 0, 0, 1],
-			[1, 3, 3, 1, 2, 4, 4, 2, 2, 4, 4, 2, 1, 0, 0, 1, 3, 3, 3, 3],
-			[4, 4, 2, 0, 4, 4, 2, 1, 1, 1, 3, 3, 2, 3, 3, 1, 2, 3, 3, 0],
-			[2, 0, 4, 4, 2, 1, 4, 4, 3, 3, 1, 2, 3, 3, 1, 2, 0, 1, 3, 3],
-			[2, 3, 3, 2, 2, 1, 1, 2, 0, 4, 4, 0, 1, 4, 4, 1, 3, 3, 3, 3],
-			[3, 3, 1, 1, 3, 3, 4, 4, 1, 1, 4, 4, 3, 3, 2, 2, 0, 0, 2, 2],
-			[2, 4, 4, 2, 2, 4, 4, 2, 3, 3, 0, 1, 1, 1, 3, 3, 3, 3, 0, 1],
-			[1, 1, 1, 1, 0, 3, 3, 0, 2, 4, 4, 2, 2, 4, 4, 2, 3, 3, 3, 3],
-			[2, 4, 4, 2, 2, 4, 4, 2, 1, 1, 3, 3, 1, 3, 3, 0, 3, 3, 0, 1],
-			[4, 4, 3, 3, 4, 4, 3, 3, 2, 2, 3, 3, 2, 2, 1, 1, 1, 0, 0, 1],
-			[4, 4, 1, 0, 4, 4, 0, 2, 2, 3, 3, 2, 2, 3, 3, 1, 1, 1, 3, 3],
-			[2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1, 1, 3, 3, 1, 0, 3, 3, 0],
-			[2, 4, 4, 2, 2, 4, 4, 2, 3, 3, 3, 3, 1, 3, 3, 1, 1, 0, 0, 1],
-			[1, 0, 0, 1, 1, 3, 3, 2, 3, 3, 2, 2, 4, 4, 2, 1, 4, 4, 3, 3],
-			[1, 4, 4, 0, 1, 4, 4, 0, 3, 3, 3, 3, 2, 2, 1, 1, 2, 2, 3, 3],
-			[4, 4, 1, 2, 4, 4, 0, 2, 1, 0, 3, 3, 1, 2, 3, 3, 1, 2, 3, 3],
-			[4, 4, 2, 1, 4, 4, 2, 1, 2, 3, 3, 1, 2, 3, 3, 1, 0, 3, 3, 0],
-			[3, 3, 4, 4, 3, 3, 4, 4, 3, 3, 2, 2, 0, 0, 2, 2, 1, 1, 1, 1],
-			[3, 3, 2, 2, 4, 4, 2, 2, 4, 4, 3, 3, 3, 3, 1, 1, 1, 1, 0, 0],
-			[2, 1, 3, 3, 2, 4, 4, 1, 1, 4, 4, 2, 3, 3, 1, 2, 0, 3, 3, 0],
-			[4, 4, 0, 1, 4, 4, 0, 1, 2, 1, 3, 3, 2, 3, 3, 2, 3, 3, 1, 2],
-			[0, 4, 4, 0, 1, 4, 4, 1, 1, 1, 3, 3, 3, 3, 2, 2, 3, 3, 2, 2],
-			[3, 3, 2, 2, 4, 4, 2, 2, 4, 4, 3, 3, 3, 3, 1, 1, 0, 1, 1, 0],
-			[4, 4, 2, 1, 4, 4, 2, 0, 1, 1, 3, 3, 2, 0, 3, 3, 2, 3, 3, 1],
-			[0, 1, 1, 0, 3, 3, 1, 1, 4, 4, 3, 3, 4, 4, 2, 2, 3, 3, 2, 2],
-			[2, 1, 4, 4, 2, 0, 4, 4, 3, 3, 1, 1, 0, 3, 3, 2, 1, 3, 3, 2],
-			[0, 4, 4, 0, 2, 4, 4, 1, 2, 3, 3, 1, 1, 3, 3, 2, 1, 3, 3, 2],
-			[0, 4, 4, 1, 1, 4, 4, 2, 3, 3, 0, 2, 2, 1, 3, 3, 2, 3, 3, 1],
-			[4, 4, 3, 3, 4, 4, 1, 2, 2, 1, 0, 2, 2, 1, 3, 3, 3, 3, 1, 0],
-			[2, 4, 4, 2, 2, 4, 4, 2, 3, 3, 3, 3, 0, 1, 1, 0, 3, 3, 1, 1],
-			[4, 4, 0, 0, 4, 4, 1, 2, 2, 1, 1, 2, 2, 1, 3, 3, 3, 3, 3, 3],
-			[1, 4, 4, 1, 1, 4, 4, 1, 2, 3, 3, 2, 2, 3, 3, 2, 0, 3, 3, 0],
-			[4, 4, 3, 3, 4, 4, 3, 3, 2, 1, 1, 2, 2, 3, 3, 2, 1, 0, 0, 1],
-			[2, 4, 4, 1, 2, 4, 4, 2, 3, 3, 1, 2, 3, 3, 0, 0, 1, 1, 3, 3],
-			[4, 4, 3, 3, 4, 4, 3, 3, 2, 1, 1, 2, 2, 0, 0, 2, 1, 3, 3, 1],
-			[1, 4, 4, 0, 1, 4, 4, 0, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 2, 2],
-			[4, 4, 0, 1, 4, 4, 1, 1, 2, 1, 3, 3, 2, 3, 3, 2, 3, 3, 0, 2],
-			[1, 1, 1, 2, 2, 4, 4, 2, 2, 4, 4, 1, 3, 3, 3, 3, 0, 3, 3, 0],
-			[2, 0, 1, 2, 2, 4, 4, 2, 1, 4, 4, 0, 3, 3, 3, 3, 1, 1, 3, 3],
-			[0, 4, 4, 0, 1, 4, 4, 1, 2, 3, 3, 2, 2, 3, 3, 2, 1, 3, 3, 1],
-			[1, 1, 4, 4, 0, 0, 4, 4, 2, 1, 3, 3, 2, 3, 3, 2, 3, 3, 1, 2],
-			[4, 4, 3, 3, 4, 4, 2, 1, 3, 3, 2, 2, 1, 3, 3, 2, 1, 0, 0, 1],
-			[1, 3, 3, 1, 2, 4, 4, 2, 2, 4, 4, 2, 1, 3, 3, 1, 0, 3, 3, 0],
-			[4, 4, 1, 2, 4, 4, 0, 2, 0, 2, 3, 3, 1, 2, 3, 3, 1, 1, 3, 3],
-			[4, 4, 1, 1, 4, 4, 3, 3, 1, 1, 3, 3, 3, 3, 2, 2, 0, 0, 2, 2],
-			[4, 4, 1, 1, 4, 4, 3, 3, 3, 3, 1, 0, 1, 2, 3, 3, 0, 2, 3, 3],
-			[3, 3, 1, 1, 3, 3, 4, 4, 1, 2, 4, 4, 0, 2, 3, 3, 3, 3, 1, 0],
-			[1, 1, 4, 4, 3, 3, 4, 4, 2, 1, 3, 3, 2, 1, 3, 3, 0, 0, 3, 3],
-			[2, 1, 3, 3, 2, 1, 1, 1, 3, 3, 4, 4, 3, 3, 4, 4, 3, 3, 0, 0],
-			[3, 3, 4, 4, 3, 3, 4, 4, 3, 3, 3, 3, 1, 0, 1, 2, 1, 0, 1, 2],
-			[1, 1, 3, 3, 3, 3, 4, 4, 2, 1, 4, 4, 2, 1, 3, 3, 0, 0, 3, 3],
-			[3, 3, 1, 1, 1, 2, 4, 4, 0, 2, 4, 4, 3, 3, 1, 0, 3, 3, 3, 3],
-			[4, 4, 1, 1, 4, 4, 3, 3, 3, 3, 2, 0, 3, 3, 2, 1, 1, 3, 3, 0],
-			[2, 4, 4, 1, 2, 4, 4, 1, 1, 3, 3, 1, 3, 3, 3, 3, 0, 3, 3, 0],
-			[2, 1, 3, 3, 2, 4, 4, 0, 1, 4, 4, 1, 0, 3, 3, 1, 3, 3, 3, 3],
-			[4, 4, 1, 0, 4, 4, 1, 1, 2, 1, 3, 3, 2, 3, 3, 0, 3, 3, 3, 3],
-			[3, 3, 0, 2, 0, 4, 4, 2, 1, 4, 4, 1, 3, 3, 3, 3, 1, 3, 3, 1],
-			[2, 4, 4, 1, 2, 4, 4, 1, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0, 1],
-			[4, 4, 3, 3, 4, 4, 3, 3, 3, 3, 1, 1, 0, 2, 3, 3, 0, 2, 1, 1],
-			[1, 2, 0, 0, 1, 2, 3, 3, 4, 4, 3, 3, 4, 4, 1, 1, 3, 3, 3, 3],
-			[3, 3, 4, 4, 2, 1, 4, 4, 2, 1, 3, 3, 0, 1, 3, 3, 0, 1, 3, 3],
-			[0, 2, 3, 3, 0, 2, 3, 3, 4, 4, 1, 1, 4, 4, 1, 1, 3, 3, 3, 3],
-			[1, 4, 4, 0, 1, 4, 4, 0, 3, 3, 3, 3, 1, 2, 3, 3, 1, 2, 3, 3],
-			[3, 3, 3, 3, 2, 0, 0, 1, 2, 4, 4, 1, 1, 4, 4, 1, 3, 3, 3, 3],
-			[2, 4, 4, 0, 2, 4, 4, 0, 3, 3, 1, 1, 3, 3, 3, 3, 1, 1, 3, 3],
-			[1, 2, 1, 1, 1, 2, 0, 0, 3, 3, 4, 4, 3, 3, 4, 4, 3, 3, 3, 3],
-			[1, 1, 3, 3, 1, 2, 4, 4, 0, 2, 4, 4, 0, 1, 3, 3, 3, 3, 3, 3],
-			[1, 4, 4, 1, 1, 4, 4, 1, 2, 0, 3, 3, 2, 0, 3, 3, 3, 3, 3, 3],
-			[3, 3, 3, 3, 4, 4, 3, 3, 4, 4, 1, 1, 2, 0, 3, 3, 2, 1, 0, 1],
-			[4, 4, 1, 2, 4, 4, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 1],
-			[1, 4, 4, 0, 1, 4, 4, 0, 3, 3, 3, 3, 3, 3, 2, 1, 3, 3, 2, 1],
-			[2, 4, 4, 0, 2, 4, 4, 0, 3, 3, 1, 1, 3, 3, 3, 3, 3, 3, 1, 1],
-			[2, 4, 4, 0, 2, 4, 4, 0, 3, 3, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3],
-			[3, 3, 3, 3, 4, 4, 1, 1, 4, 4, 1, 1, 0, 2, 3, 3, 0, 2, 3, 3],
-			[1, 1, 3, 3, 3, 3, 3, 3, 2, 4, 4, 0, 2, 4, 4, 0, 1, 1, 3, 3],
-			[1, 4, 4, 1, 2, 4, 4, 1, 2, 1, 3, 3, 3, 3, 3, 3, 0, 3, 3, 0],
-			[3, 3, 3, 3, 1, 4, 4, 1, 2, 4, 4, 1, 2, 0, 0, 1, 3, 3, 3, 3],
-			[3, 3, 4, 4, 3, 3, 4, 4, 3, 3, 1, 0, 1, 3, 3, 0, 1, 1, 3, 3],
-			[3, 3, 3, 3, 3, 3, 1, 1, 1, 4, 4, 1, 0, 4, 4, 0, 3, 3, 3, 3],
-			[3, 3, 3, 3, 0, 4, 4, 0, 1, 4, 4, 1, 3, 3, 1, 1, 3, 3, 3, 3],
-			[4, 4, 1, 1, 4, 4, 3, 3, 3, 3, 3, 3, 1, 3, 3, 0, 3, 3, 1, 0],
-			[1, 4, 4, 0, 1, 4, 4, 0, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
-		]
-
-
-		var round, roundString, step, map, solved, target, startAt;
-
-		function init() {
-			startAt = [0, 0];
-			Board.addEventListener('touchstart', touchStart);
-			Board.addEventListener('touchmove', function (event) { event.preventDefault(); })
-			Board.addEventListener('touchend', touchEnd);
-			Board.addEventListener('click', move);
-			document.addEventListener('keydown', ArrowKeyHandle);
-			round = getRound();
-			reset();
-		}
-
-		function reset() {
-			target = [-1, -1];
-			solved = false;
-			step = -1;
-			updateStep();
-			map = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
-			roundString = 'R: ' + ('000' + (parseInt(round) + 1)).slice(-3);
-			RoundLabel.innerText = roundString;
-			Context.clearRect(0, 0, 4 * UNIT, 5 * UNIT);
-			Context.fillStyle = '#fb4934';
-			placeBlocks();
-
-
-		}
-
-		function placeBlocks() {
-			for (let row = 0; row < 5; row++) {
-				for (let col = 0; col < 4; col++) {
-					if (map[row][col] != 0) {
-						continue;
-					}
-					map[row][col] = DATA[round][row * 4 + col];
-					if (map[row][col] != 0) {
-						drawBlock(row, col, map[row][col]);
-					}
-					switch (map[row][col]) {
-						case 2:
-							map[row + 1][col] = 2;
-							break;
-						case 3:
-							map[row][col + 1] = 3;
-							break;
-						case 4:
-							map[row + 1][col + 1] = 4;
-							map[row + 1][col] = 4;
-							map[row][col + 1] = 4;
-					}
-				}
-			}
-		}
-
-		function drawBlock(row, col, bType) {
-			Context.fillRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
-		}
-
-		function clearBlock(row, col, bType) {
-			Context.clearRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
-		}
-
-		function getRound() {
-			let round = JSON.parse(localStorage.getItem('round'));
-			return round != null ? parseInt(round) : 0;
-		}
-
-		function selectRound(param) {
-			round += param;
-			if (round < 0) {
-				round = 0;
-			} else if (round >= DATA.length) {
-				round = DATA.length - 1;
-			}
-			localStorage.setItem('round', round);
-			reset();
-		}
-
-		function updateStep() {
-			StepLabel.innerText = 'S: ' + (++step);
-		}
-
-		function move(event) {
-			event.preventDefault();
-			if (solved) return;
-			let col = parseInt((event.clientX - Board.offsetLeft) / UNIT);
-			let row = parseInt((event.clientY - Board.offsetTop) / UNIT);
-			if (document.documentElement.scrollTop != 0) {
-				document.documentElement.scrollTo(0, 0);
-			}
-			let cellClicked = map[row][col];
-			if (cellClicked == 0 && target[0] != -1) {
-				let t_row = target[0];
-				let t_col = target[1];
-				let t_type = map[t_row][t_col];
-				if (col < t_col && row >= t_row && row < t_row + BH[t_type]) {
-					moveLeft(t_row, t_col);
-				} else if (col >= t_col + BW[t_type] && row >= t_row && row < t_row + BH[t_type]) {
-					moveRight(t_row, t_col);
-				} else if (row < t_row && col >= t_col && col < t_col + BW[t_type]) {
-					moveUp(t_row, t_col);
-				} else if (row >= t_row + BH[t_type] && col >= t_col && col < t_col + BW[t_type]) {
-					moveDown(t_row, t_col);
-				}
-				return;
-			}
-			target = findBlock(row, col, cellClicked);
-		}
-
-		function touchStart(event) {
-			event.preventDefault();
-			startAt = [event.changedTouches[0].clientX, event.changedTouches[0].clientY];
-		}
-
-		function touchEnd(event) {
-			event.preventDefault();
-			if (solved) return;
-			let x = event.changedTouches[0].clientX;
-			let y = event.changedTouches[0].clientY;
-			let startCellCol = parseInt((startAt[0] - Board.offsetLeft) / UNIT);
-			let startCellRow = parseInt((startAt[1] - Board.offsetTop) / UNIT);
-			if (document.documentElement.scrollTop != 0) {
-				document.documentElement.scrollTo(0, 0);
-			}
-			let startCellType = map[startCellRow][startCellCol];
-			if (startCellType == 0) {
-				if (target[0] == -1) {
-					return;
-				}
-				let targetType = map[target[0]][target[1]];
-				if (startCellCol < target[1] && startCellRow >= target[0] && startCellRow < target[0] + BH[targetType]) {
-					moveLeft(target[0], target[1]);
-				} else if (startCellCol >= target[1] + BW[targetType] && startCellRow >= target[0] && startCellRow < target[0] + BH[targetType]) {
-					moveRight(target[0], target[1]);
-				} else if (startCellRow < target[0] && startCellCol >= target[1] && startCellCol < target[1] + BW[targetType]) {
-					moveUp(target[0], target[1]);
-				} else if (startCellRow >= target[0] + BH[targetType] && startCellCol >= target[1] && startCellCol < target[1] + BW[targetType]) {
-					moveDown(target[0], target[1]);
-				}
-				return;
-			}
-			target = findBlock(startCellRow, startCellCol, startCellType);
-			let squareDistance = (x - startAt[0]) * (x - startAt[0]) - (y - startAt[1]) * (y - startAt[1]);
-			if (squareDistance < -THRESHOLD || squareDistance > THRESHOLD) {
-				if ((x - startAt[0]) * (x - startAt[0]) > (y - startAt[1]) * (y - startAt[1])) {
-					if ((x - startAt[0]) * (x - startAt[0]) <= THRESHOLD)
-						return;
-					if (x < startAt[0]) {
-						moveLeft(target[0], target[1]);
-					} else {
-						moveRight(target[0], target[1]);
-					}
-				} else if ((y - startAt[1]) * (y - startAt[1]) > THRESHOLD) {
-					if (y < startAt[1]) {
-						moveUp(target[0], target[1]);
-					} else {
-						moveDown(target[0], target[1]);
-					}
-				}
-			}
-		}
-
-		function check() {
-			if (map[3][1] == map[4][2] && map[4][2] == 4) {
-				Context.fillStyle = '#780425';
-				drawBlock(3, 1, 4);
-				Context.fillStyle = '#fabd2f';
-				solved = true;
-			}
-		}
-
-		function findBlock(row, col, bType) {
-			if (bType == 1) {
-				return [row, col];
-			} else if (bType == 2) {
-				if (row == 0)
-					return [0, col];
-				if (row == 4)
-					return [3, col];
-				if (2 != map[row + 1][col])
-					return [row - 1, col];
-				if (2 != map[row - 1][col])
-					return [row, col];
-				if (row == 1)
-					return [0, col];
-				if (row == 3)
-					return [3, col];
-				if (map[0][col] == 2)
-					return [2, col];
-				return [1, col];
-			} else if (bType == 3) {
-				if (col == 0)
-					return [row, 0];
-				if (col == 3)
-					return [row, 2];
-				if (3 != map[row][col - 1])
-					return [row, col];
-				if (3 != map[row][col + 1])
-					return [row, col - 1];
-				return [row, 2 * (col - 1)];
-			} else if (bType == 4) {
-				if (col > 0 && 4 == map[row][col - 1]) {
-					if (row > 0 && 4 == map[row - 1][col - 1]) {
-						return [row - 1, col - 1];
-					} else {
-						return [row, col - 1];
-					}
-				} else {
-					if (row > 0 && 4 == map[row - 1][col]) {
-						return [row - 1, col];
-					} else {
-						return [row, col];
-					}
-				}
-			}
-			return [-1, -1];
-		}
-
-		function moveLeft(row, col) {
-			let bType = map[row][col];
-			switch (bType) {
-				case 1:
-					if (col <= 0 || map[row][col - 1] != 0) {
-						return;
-					}
-					map[row][col] = 0;
-					map[row][col - 1] = 1;
-					break;
-				case 2:
-					if (col <= 0 || map[row][col - 1] != map[row + 1][col - 1] || map[row][col - 1] != 0) {
-						return;
-					}
-					map[row][col - 1] = map[row + 1][col - 1] = 2;
-					map[row][col] = map[row + 1][col] = 0;
-					break;
-				case 3:
-					if (col <= 0 || map[row][col - 1] != 0) {
-						return;
-					}
-					map[row][col + 1] = 0;
-					map[row][col - 1] = 3;
-					break;
-				case 4:
-					if (col <= 0 || map[row][col - 1] != map[row + 1][col - 1] || map[row][col - 1] != 0) {
-						return;
-					}
-					map[row][col - 1] = map[row + 1][col - 1] = 4;
-					map[row][col + 1] = map[row + 1][col + 1] = 0;
-			}
-			clearBlock(row, col, bType);
-			drawBlock(row, col - 1, bType);
-			target = [row, col - 1];
-			updateStep();
-			if (bType == 4) {
-				check();
-			}
-		}
-
-		function moveUp(row, col) {
-			let bType = map[row][col];
-			switch (bType) {
-				case 1:
-					if (row <= 0 || map[row - 1][col] != 0) {
-						return;
-					}
-					map[row][col] = 0;
-					map[row - 1][col] = 1;
-					break;
-				case 2:
-					if (row <= 0 || map[row - 1][col] != 0) {
-						return;
-					}
-					map[row + 1][col] = 0;
-					map[row - 1][col] = 2;
-					break;
-				case 3:
-					if (row <= 0 || map[row - 1][col] != map[row - 1][col + 1] || map[row - 1][col + 1] != 0) {
-						return;
-					}
-					map[row - 1][col] = map[row - 1][col + 1] = 3;
-					map[row][col] = map[row][col + 1] = 0;
-					break;
-				case 4:
-					if (row <= 0 || map[row - 1][col] != map[row - 1][col + 1] || map[row - 1][col + 1] != 0) {
-						return;
-					}
-					map[row - 1][col] = map[row - 1][col + 1] = 4;
-					map[row + 1][col] = map[row + 1][col + 1] = 0;
-			}
-			clearBlock(row, col, bType);
-			drawBlock(row - 1, col, bType);
-			target = [row - 1, col];
-			updateStep();
-		}
-
-		function moveRight(row, col) {
-			let bType = map[row][col];
-			switch (bType) {
-				case 1:
-					if (col >= 3 || map[row][col + 1] != 0) {
-						return;
-					}
-					map[row][col] = 0;
-					map[row][col + 1] = 1;
-					break;
-				case 2:
-					if (col >= 3 || map[row][col + 1] != map[row + 1][col + 1] || map[row][col + 1] != 0) {
-						return;
-					}
-					map[row][col + 1] = map[row + 1][col + 1] = 2;
-					map[row][col] = map[row + 1][col] = 0;
-					break;
-				case 3:
-					if (col >= 2 || map[row][col + 2] != 0) {
-						return;
-					}
-					map[row][col] = 0;
-					map[row][col + 2] = 3;
-					break;
-				case 4:
-					if (col >= 2 || map[row][col + 2] != map[row + 1][col + 2] || map[row + 1][col + 2] != 0) {
-						return;
-					}
-					map[row][col + 2] = map[row + 1][col + 2] = 4;
-					map[row][col] = map[row + 1][col] = 0;
-			}
-			clearBlock(row, col, bType);
-			drawBlock(row, col + 1, bType);
-			target = [row, col + 1];
-			updateStep();
-			if (bType == 4) {
-				check();
-			}
-		}
-
-		function moveDown(row, col) {
-			let bType = map[row][col];
-			switch (bType) {
-				case 1:
-					if (row >= 4 || map[row + 1][col] != 0) {
-						return;
-					}
-					map[row][col] = 0;
-					map[row + 1][col] = 1;
-					break;
-				case 2:
-					if (row >= 3 || map[row + 2][col] != 0) {
-						return;
-					}
-					map[row][col] = 0;
-					map[row + 2][col] = 2;
-					break;
-				case 3:
-					if (row >= 4 || map[row + 1][col] != map[row + 1][col + 1] || map[row + 1][col + 1] != 0) {
-						return;
-					}
-					map[row + 1][col] = map[row + 1][col + 1] = 3;
-					map[row][col] = map[row][col + 1] = 0;
-					break;
-				case 4:
-					if (row >= 3 || map[row + 2][col] != map[row + 2][col + 1] || map[row + 2][col + 1] != 0) {
-						return;
-					}
-					map[row + 2][col] = map[row + 2][col + 1] = 4;
-					map[row][col] = map[row][col + 1] = 0;
-			}
-			clearBlock(row, col, bType);
-			drawBlock(row + 1, col, bType);
-			target = [row + 1, col];
-			updateStep();
-			if (bType == 4) {
-				check();
-			}
-		}
-
-		function ArrowKeyHandle(event) {
-			event.preventDefault();
-			if (solved) return;
-			switch (event.keyCode) {
-				case 37:
-				case 65:
-					moveLeft(target[0], target[1]);
-					break;
-				case 38:
-				case 87:
-					moveUp(target[0], target[1]);
-					break;
-				case 39:
-				case 68:
-					moveRight(target[0], target[1]);
-					break;
-				case 40:
-				case 83:
-					moveDown(target[0], target[1]);
-			}
-		}
-
-		init();
-	</script>
 </body>
 
 </html>

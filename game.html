@@ -1,0 +1,732 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Klotski Puzzle</title>
+    <meta charset="utf-8">
+    <meta name="description" content="Klotski Puzzle Online, Klotski Puzzle Solutions.">
+    <meta name="viewport" content="width=device-width, initial-scale=1 user-scalable=0">
+    <style>
+        * {
+            padding: 0;
+        }
+
+        body {
+            width: 360px;
+            background: #458588;
+            text-align: center;
+            font-family: "droid sans fallback";
+            font-size: 12px;
+            margin: auto;
+        }
+
+        .bar {
+            background: #073642;
+            padding: 8px 0;
+        }
+
+        .bar span,
+        .bar a {
+            color: #fff;
+            display: inline-block;
+            padding: 10px;
+            text-decoration: none;
+        }
+
+        .bar .button {
+            background: #93a1a1;
+            margin: 2px;
+            cursor: pointer;
+
+        }
+
+        #round_select {
+            height: 30px;
+        }
+
+        #board {
+            margin-top: 4px;
+            background: #eee8d5;
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <div class="bar">
+            <span class="button" onclick="setRound(-1)">Prev</span>
+            <select id="round_select" onchange="setRound(0)"></select>
+            <span class="button" onclick="setRound(1)">Next</span>
+            <span id="step_label">Move: 000</span>
+            <span class="button" onclick="start()">Restart</span>
+        </div>
+        <canvas id="board" width="321" height="401"></canvas>
+        <div class="bar">
+            <a href="index.html" class="button">Homepage</a>
+            <a href="records.html" class="button">History</a>
+            <a href="customize.html" class="button">Customize</a>
+            <a href="solution.html" class="button">Solutions</a>
+        </div>
+    </div>
+
+    <script>
+
+        'use strict';
+
+        const UNIT = 80;
+        const THRESHOLD = 300;
+        const Board = document.getElementById('board');
+        const RoundSelector = document.getElementById('round_select');
+        const StepLabel = document.getElementById('step_label');
+        const Context = Board.getContext('2d');
+        const BW = [0, 1, 1, 2, 2];
+        const BH = [0, 1, 2, 1, 2];
+
+        const DATA = [
+            "24422442233221121001",
+            "14412442233221122002",
+            "24422442133121122002",
+            "44224422331122112200",
+            "22002233114422442211",
+            "22112211223322440044",
+            "44114411330022222222",
+            "44114433001222222221",
+            "21122442244123321002",
+            "14412442222212210330",
+            "24412441233122210220",
+            "24412441233222021201",
+            "12212222211244004433",
+            "44124422212122330210",
+            "14422442222102201133",
+            "22222222044014413311",
+            "14422442233212120201",
+            "44334412112212220202",
+            "21332441244122120202",
+            "12211222442244210033",
+            "44204420123322122112",
+            "24412442331220122012",
+            "20442244122011223312",
+            "24402441332220222111",
+            "22442244101220122331",
+            "14412442220212013333",
+            "21222022044114413333",
+            "22022202144114413333",
+            "02111244224422333310",
+            "22112233244024410331",
+            "14421442113333220022",
+            "44114412002233221332",
+            "01114422442233213320",
+            "14412440223322112330",
+            "44334421222122110330",
+            "12221222331133440044",
+            "22212221443344003311",
+            "24412441233223321001",
+            "33442044220122332111",
+            "24422442333312011201",
+            "11124422442203320133",
+            "44334421112223322001",
+            "33114400443322212221",
+            "44124422012103323312",
+            "20012332112244214433",
+            "21442144331123322002",
+            "13321122442244020133",
+            "10024422442233121133",
+            "21102244024421332331",
+            "33442144223302211021",
+            "24412441331123322002",
+            "33211122044214423302",
+            "24402440111122332233",
+            "44024412332120212331",
+            "01101233124422442233",
+            "44024402233121213321",
+            "12441244331233221020",
+            "14401441233120223322",
+            "44014401213321223322",
+            "02220222111144334433",
+            "44024412012133223312",
+            "13322442244213320110",
+            "21112233220120443344",
+            "14412442233233330110",
+            "14411441223322330330",
+            "44114421332133203320",
+            "01103333244224421331",
+            "44014401213323321332",
+            "04401441113322332233",
+            "33443344121212120033",
+            "33330110244224421331",
+            "14412442233213310330",
+            "44224422333313311001",
+            "01102332244214413333",
+            "44124402023312331133",
+            "14410441203323323312",
+            "44104411213322330233",
+            "10013333244224421331",
+            "44114433033123322012",
+            "04402442233233331111",
+            "04412441213321332033",
+            "03301331244224421331",
+            "14412441200213323333",
+            "33332442244213311001",
+            "14401440332233221133",
+            "14421442233123310330",
+            "13312332244214410330",
+            "24422442133133331001",
+            "13312442244210013333",
+            "44204421113323312330",
+            "20442144331233120133",
+            "23322112044014413333",
+            "33113344114433220022",
+            "24422442330111333301",
+            "11110330244224423333",
+            "24422442113313303301",
+            "44334433223322111001",
+            "44104402233223311133",
+            "24422442133113310330",
+            "24422442333313311001",
+            "10011332332244214433",
+            "14401440333322112233",
+            "44124402103312331233",
+            "44214421233123310330",
+            "33443344332200221111",
+            "33224422443333111100",
+            "21332441144233120330",
+            "44014401213323323312",
+            "04401441113333223322",
+            "33224422443333110110",
+            "44214420113320332331",
+            "01103311443344223322",
+            "21442044331103321332",
+            "04402441233113321332",
+            "04411442330221332331",
+            "44334412210221333310",
+            "24422442333301103311",
+            "44004412211221333333",
+            "14411441233223320330",
+            "44334433211223321001",
+            "24412442331233001133",
+            "44334433211220021331",
+            "14401440333311223322",
+            "44014411213323323302",
+            "11122442244133330330",
+            "20122442144033331133",
+            "04401441233223321331",
+            "11440044213323323312",
+            "44334421332213321001",
+            "13312442244213310330",
+            "44124402023312331133",
+            "44114433113333220022",
+            "33331441244120013333",
+            "33333311144104403333"
+        ];
+
+        var round, step, path, map, solved, target, startAt;
+
+        function init() {
+            Board.addEventListener('touchstart', touchStart);
+            Board.addEventListener('touchend', touchEnd);
+            Board.addEventListener('click', move);
+            document.addEventListener('keydown', ArrowKeyHandle);
+            for (let i = 1; i <= DATA.length; i++) {
+                let Opt = document.createElement('OPTION');
+                Opt.value = i - 1;
+                Opt.innerText = ("00" + i).slice(-3);
+                RoundSelector.appendChild(Opt);
+            }
+            let r = JSON.parse(localStorage.getItem('round'));
+            round = r !== null ? parseInt(r) : 0;
+            RoundSelector.value = round;
+            start();
+        }
+
+        function setRound(n) {
+            if (n === 0) {
+                round = parseInt(RoundSelector.value);
+            } else if (n === 1) {
+                round = round + 1 >= DATA.length ? DATA.length - 1 : round + 1;
+            } else if (n === -1) {
+                round = round - 1 < 0 ? 0 : round - 1;
+            }
+            RoundSelector.value = round;
+            localStorage.setItem('round', round);
+            start();
+        }
+
+        function start() {
+            step = -1;
+            path = [];
+            map = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            solved = false;
+            target = -1;
+            startAt = [0, 0];
+            setBlocks();
+            setStepLabel();
+        }
+
+        function setBlocks() {
+            Context.clearRect(0, 0, 4 * UNIT, 5 * UNIT);
+            Context.fillStyle = '#fb4934';
+            for (let idx = 0; idx < 20; idx++) {
+                if (map[idx] !== 0) {
+                    continue;
+                }
+                map[idx] = parseInt(DATA[round][idx]);
+                if (map[idx] !== 0) {
+                    drawBlock(idx);
+                }
+                switch (map[idx]) {
+                    case 2:
+                        map[idx + 4] = 2;
+                        break;
+                    case 3:
+                        map[idx + 1] = 3;
+                        break;
+                    case 4:
+                        map[idx + 1] = 4;
+                        map[idx + 4] = 4;
+                        map[idx + 5] = 4;
+                }
+            }
+        }
+
+        function drawBlock(idx) {
+            let row = parseInt(idx / 4), col = idx % 4, bType = map[idx];
+            Context.fillRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+        }
+
+        function clearBlock(idx, bType) {
+            let row = parseInt(idx / 4), col = idx % 4;
+            Context.clearRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+        }
+
+        function setStepLabel() {
+            StepLabel.innerText = "Move: " + ("00" + ++step).slice(-3);
+        }
+
+        function highlightTarget(flag) {
+            if (target === -1)
+                return;
+            let row = parseInt(target / 4), col = target % 4, bType = map[target];
+            if (flag) {
+                Context.fillStyle = '#cc241d';
+                Context.fillRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+                Context.fillStyle = '#fb4934';
+            } else {
+                Context.fillStyle = '#fb4934';
+                Context.fillRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+                Context.fillStyle = '#cc241d';
+            }
+        }
+
+        function touchStart(event) {
+            event.preventDefault();
+            startAt = [event.changedTouches[0].clientX, event.changedTouches[0].clientY];
+        }
+
+        function touchEnd(event) {
+            let targetRow = parseInt(target / 4), targetCol = target % 4, targetType = map[target];
+            event.preventDefault();
+            if (solved)
+                return;
+            let x = event.changedTouches[0].clientX;
+            let y = event.changedTouches[0].clientY;
+            let startCellCol = parseInt((startAt[0] - Board.offsetLeft) / UNIT);
+            let startCellRow = parseInt((startAt[1] - Board.offsetTop) / UNIT);
+            let startCellType = map[startCellRow * 4 + startCellCol];
+            if (startCellType === 0) {
+                if (target === -1) {
+                    return;
+                }
+                if (startCellCol < targetCol && startCellRow >= targetRow && startCellRow < targetRow + BH[targetType]) {
+                    moveLeft();
+                } else if (startCellCol >= targetCol + BW[targetType] && startCellRow >= targetRow && startCellRow < targetRow + BH[targetType]) {
+                    moveRight();
+                } else if (startCellRow < targetRow && startCellCol >= targetCol && startCellCol < targetCol + BW[targetType]) {
+                    moveUp();
+                } else if (startCellRow >= targetRow + BH[targetType] && startCellCol >= targetCol && startCellCol < targetCol + BW[targetType]) {
+                    moveDown();
+                }
+                return;
+            }
+            let temp = findBlock(startCellRow * 4 + startCellCol);
+            if (temp !== target) {
+                if (Array.isArray(path[path.length - 1])) {
+                    path[path.length - 1] = temp;
+                } else {
+                    path.push([temp]);
+                }
+                highlightTarget(false);
+                target = temp;
+                highlightTarget(true);
+            }
+            let squareDistance = (x - startAt[0]) * (x - startAt[0]) - (y - startAt[1]) * (y - startAt[1]);
+            if (squareDistance < -THRESHOLD || squareDistance > THRESHOLD) {
+                if ((x - startAt[0]) * (x - startAt[0]) > (y - startAt[1]) * (y - startAt[1])) {
+                    if ((x - startAt[0]) * (x - startAt[0]) <= THRESHOLD)
+                        return;
+                    if (x < startAt[0]) {
+                        moveLeft();
+                    } else {
+                        moveRight();
+                    }
+                } else if ((y - startAt[1]) * (y - startAt[1]) > THRESHOLD) {
+                    if (y < startAt[1]) {
+                        moveUp();
+                    } else {
+                        moveDown();
+                    }
+                }
+            }
+        }
+
+        function move(event) {
+            event.preventDefault();
+            if (solved)
+                return;
+            let col = parseInt((event.clientX - Board.offsetLeft) / UNIT);
+            let row = parseInt((event.clientY - Board.offsetTop) / UNIT);
+            let cellClicked = map[row * 4 + col];
+            if (cellClicked === 0 && target !== -1) {
+                let t_row = parseInt(target / 4), t_col = target % 4, t_type = map[target];
+                if (col < t_col && row >= t_row && row < t_row + BH[t_type]) {
+                    moveLeft();
+                } else if (col >= t_col + BW[t_type] && row >= t_row && row < t_row + BH[t_type]) {
+                    moveRight();
+                } else if (row < t_row && col >= t_col && col < t_col + BW[t_type]) {
+                    moveUp();
+                } else if (row >= t_row + BH[t_type] && col >= t_col && col < t_col + BW[t_type]) {
+                    moveDown();
+                }
+                return;
+            }
+            let temp = findBlock(row * 4 + col);
+            if (temp !== target) {
+                if (Array.isArray(path[path.length - 1])) {
+                    path[path.length - 1] = [temp];
+                } else {
+                    path.push([temp]);
+                }
+                highlightTarget(false);
+                target = temp;
+                highlightTarget(true);
+            }
+        }
+
+        function check() {
+            if (map[13] !== map[18] || map[18] !== 4) {
+                return;
+            }
+            Context.fillStyle = '#cc241d';
+            drawBlock(13);
+            Context.fillStyle = '#fabd2f';
+            solved = true;
+            let keepPath = true;
+            let recorder = JSON.parse(localStorage.getItem('records'));
+            if (recorder !== null) {
+                if (!Array.isArray(recorder)) {
+                    recorder = [recorder];
+                }
+                let find = false;
+                for (let i = 0; i < recorder.length; i++) {
+                    if (recorder[i]._r === round) {
+                        find = true;
+                        if (recorder[i]._s > step) {
+                            recorder[i]._s = step;
+                            recorder[i]._t = new Date().getTime();
+                            localStorage.setItem('records', JSON.stringify(recorder));
+                        } else {
+                            keepPath = false;
+                        }
+                        break;
+                    }
+                }
+                if (!find) {
+                    recorder.push({ '_r': round, '_s': step, '_t': (new Date().getTime()) });
+                    localStorage.setItem('records', JSON.stringify(recorder));
+                }
+            } else {
+                localStorage.setItem('records', JSON.stringify({ '_r': round, '_s': step, '_t': (new Date().getTime()) }));
+            }
+            let key = DATA[round];
+            let solutions = JSON.parse(localStorage.getItem('solutions'));
+            if (solutions !== null) {
+                if (!Array.isArray(solutions)) {
+                    solutions = [solutions];
+                }
+                let find = false;
+                for (let i = 0; i < solutions.length; i++) {
+                    if (solutions[i]._r === key) {
+                        find = true;
+                        if (solutions[i]._s > step) {
+                            solutions[i]._s = step;
+                            localStorage.setItem('solutions', JSON.stringify(solutions));
+                        }
+                        break;
+                    }
+                }
+                if (!find) {
+                    solutions.push({ '_r': key, '_s': step });
+                    localStorage.setItem('solutions', JSON.stringify(solutions));
+                }
+            } else {
+                localStorage.setItem('solutions', JSON.stringify({ '_r': key, '_s': step }));
+            }
+            if (keepPath) {
+                localStorage.setItem(key, JSON.stringify(path));
+            }
+        }
+
+        function findBlock(idx) {
+            let row = parseInt(idx / 4), col = idx % 4, bType = map[idx];
+            if (bType === 1) {
+                return idx;
+            } else if (bType === 2) {
+                if (row === 0)
+                    return idx;
+                if (row === 4)
+                    return 12 + col;
+                if (2 !== map[idx + 4])
+                    return idx - 4;
+                if (2 !== map[idx - 4])
+                    return idx;
+                if (row === 1)
+                    return col;
+                if (row === 3)
+                    return 12 + col;
+                if (map[col] === 2)
+                    return 8 + col;
+                return 4 + col;
+            } else if (bType === 3) {
+                if (col === 0)
+                    return idx;
+                if (col === 3)
+                    return row * 4 + 2;
+                if (3 !== map[idx - 1])
+                    return idx;
+                if (3 !== map[idx + 1])
+                    return idx - 1;
+                return row * 4 + 2 * (col - 1);
+            } else if (bType === 4) {
+                if (col > 0 && 4 === map[idx - 1]) {
+                    if (row > 0 && 4 === map[idx - 5]) {
+                        return idx - 5;
+                    } else {
+                        return idx - 1;
+                    }
+                } else {
+                    if (row > 0 && 4 === map[idx - 4]) {
+                        return idx - 4;
+                    } else {
+                        return idx;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        function moveLeft() {
+            let col = target % 4, bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (col <= 0 || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target - 1] = 1;
+                    break;
+                case 2:
+                    if (col <= 0 || map[target - 1] !== map[target + 3] || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target - 1] = map[target + 3] = 2;
+                    map[target] = map[target + 4] = 0;
+                    break;
+                case 3:
+                    if (col <= 0 || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target + 1] = 0;
+                    map[target - 1] = 3;
+                    break;
+                case 4:
+                    if (col <= 0 || map[target - 1] !== map[target + 3] || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target - 1] = map[target + 3] = 4;
+                    map[target + 1] = map[target + 5] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target - 1;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            path.push(0);
+            setStepLabel();
+            if (bType === 4) {
+                check();
+            }
+        }
+
+        function moveUp() {
+            let row = parseInt(target / 4), bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (row <= 0 || map[target - 4] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target - 4] = 1;
+                    break;
+                case 2:
+                    if (row <= 0 || map[target - 4] !== 0) {
+                        return;
+                    }
+                    map[target + 4] = 0;
+                    map[target - 4] = 2;
+                    break;
+                case 3:
+                    if (row <= 0 || map[target - 4] !== map[target - 3] || map[target - 3] !== 0) {
+                        return;
+                    }
+                    map[target - 4] = map[target - 3] = 3;
+                    map[target] = map[target + 1] = 0;
+                    break;
+                case 4:
+                    if (row <= 0 || map[target - 4] !== map[target - 3] || map[target - 3] !== 0) {
+                        return;
+                    }
+                    map[target - 4] = map[target - 3] = 4;
+                    map[target + 4] = map[target + 5] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target - 4;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            path.push(1);
+            setStepLabel();
+        }
+
+        function moveRight() {
+            let col = target % 4, bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (col >= 3 || map[target + 1] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 1] = 1;
+                    break;
+                case 2:
+                    if (col >= 3 || map[target + 1] !== map[target + 5] || map[target + 1] !== 0) {
+                        return;
+                    }
+                    map[target + 1] = map[target + 5] = 2;
+                    map[target] = map[target + 4] = 0;
+                    break;
+                case 3:
+                    if (col >= 2 || map[target + 2] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 2] = 3;
+                    break;
+                case 4:
+                    if (col >= 2 || map[target + 2] !== map[target + 6] || map[target + 6] !== 0) {
+                        return;
+                    }
+                    map[target + 2] = map[target + 6] = 4;
+                    map[target] = map[target + 4] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target + 1;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            path.push(2);
+            setStepLabel();
+            if (bType === 4) {
+                check();
+            }
+        }
+
+        function moveDown() {
+            let row = parseInt(target / 4), bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (row >= 4 || map[target + 4] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 4] = 1;
+                    break;
+                case 2:
+                    if (row >= 3 || map[target + 8] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 8] = 2;
+                    break;
+                case 3:
+                    if (row >= 4 || map[target + 4] !== map[target + 5] || map[target + 5] !== 0) {
+                        return;
+                    }
+                    map[target + 4] = map[target + 5] = 3;
+                    map[target] = map[target + 1] = 0;
+                    break;
+                case 4:
+                    if (row >= 3 || map[target + 8] !== map[target + 9] || map[target + 9] !== 0) {
+                        return;
+                    }
+                    map[target + 8] = map[target + 9] = 4;
+                    map[target] = map[target + 1] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target + 4;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            path.push(3);
+            setStepLabel();
+            if (bType === 4) {
+                check();
+            }
+        }
+
+        function ArrowKeyHandle(event) {
+            event.preventDefault();
+            switch (event.keyCode) {
+                case 221:
+                    setRound(1);
+                    return;
+                case 219:
+                    setRound(-1);
+                    return;
+            }
+            if (solved || target === -1)
+                return;
+            switch (event.keyCode) {
+                case 37:
+                case 65:
+                    moveLeft();
+                    break;
+                case 38:
+                case 87:
+                    moveUp();
+                    break;
+                case 39:
+                case 68:
+                    moveRight();
+                    break;
+                case 40:
+                case 83:
+                    moveDown();
+                    break;
+            }
+        }
+
+        init();
+
+    </script>
+</body>
+
+</html>

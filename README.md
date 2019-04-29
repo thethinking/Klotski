@@ -1,5 +1,5 @@
-# Klotski
+# Klotski Puzzle
 
-Klotski puzzle implemented with ONE page. Including 254 rounds. 
+Klotski puzzle online. Customize support, solutions demo.
 
-(Try it right now!)[https://thethinking.github.io/Klotski/index.html]
+(https://thethinking.github.io/klotski/)[https://thethinking.github.io/klotski/]

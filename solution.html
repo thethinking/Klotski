@@ -1,0 +1,510 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Klotski Puzzle</title>
+    <meta charset="utf-8">
+    <meta name="description" content="Klotski Puzzle Online, Klotski Puzzle Solutions.">
+    <meta name="viewport" content="width=device-width, initial-scale=1 user-scalable=0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            width: 360px;
+            background: #458588;
+            text-align: center;
+            font-family: "droid sans fallback";
+            font-size: 12px;
+            margin: auto;
+        }
+
+        .info {
+            text-align: left;
+            background: #eee8d5;
+            line-height: 30px;
+            margin-top: 2px;
+            padding: 15px;
+        }
+
+        .bar {
+            color: #FFF;
+            text-align: center;
+            background: #073642;
+            padding: 8px 0;
+        }
+
+        .headline {
+            margin: 10px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .bar span,
+        .bar a {
+            color: #fff;
+            display: inline-block;
+            padding: 10px;
+            text-decoration: none;
+        }
+
+        .bar .button {
+            background: #93a1a1;
+            margin: 2px;
+            cursor: pointer;
+        }
+
+        #board {
+            margin-top: 4px;
+            background: #eee8d5;
+
+        }
+
+        #solutions {
+            margin: 5px;
+            padding: 3px;
+        }
+
+        #solutions li {
+            list-style-type: none;
+            margin: 2px 0;
+            padding: 3px;
+        }
+
+        #solutions span.button {
+            background: #ccc;
+            padding: 2px 4px;
+            margin: 2px;
+            float: right;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div>
+        <div class="headline">Solutions</div>
+        <div class="bar">
+            <span>[Demostration]</span>
+            <span id="step_label">Move: 000</span>
+            <span class="button" onclick="clearStorage()">Delete</span>
+        </div>
+        <canvas id="board" width="321" height="401"></canvas>
+        <div class="info">
+            <ul id="solutions"></ul>
+        </div>
+        <div class="bar">
+            <span style="vertical-align: top">Data：</span><textarea id="solution_data" rows="6" cols="25"></textarea>
+            <span title="Load" class="button" style="vertical-align: top" onclick="importSolution()">Import</span>
+        </div>
+        <hr>
+        <div class="bar">
+            <a href="index.html" class="button">Homepage</a>
+            <a href="game.html" class="button">Puzzle</a>
+            <a href="records.html" class="button">History</a>
+            <a href="customize.html" class="button">Customize</a>
+        </div>
+    </div>
+
+    <script>
+
+        'use strict';
+
+        const UNIT = 80;
+        const Board = document.getElementById('board');
+        const StepLabel = document.getElementById('step_label');
+        const Context = Board.getContext('2d');
+        const SolutionList = document.getElementById('solutions');
+        const BW = [0, 1, 1, 2, 2];
+        const BH = [0, 1, 2, 1, 2];
+
+        function importSolution() {
+            let data = document.getElementById("solution_data").value.split('#');
+            if (data.length !== 2) return;
+            let key = data[0].trim();
+            let path = JSON.parse(data[1]);
+            let step = 0;
+            for (let e of path) {
+                if (!Array.isArray(e)) {
+                    step++;
+                }
+            }
+            localStorage.setItem(key, data[1]);
+            let solutions = JSON.parse(localStorage.getItem('solutions'));
+            if (solutions !== null) {
+                if (!Array.isArray(solutions)) {
+                    solutions = [solutions];
+                }
+                let find = false;
+                for (let i = 0; i < solutions.length; i++) {
+                    if (solutions[i]._r === key) {
+                        find = true;
+                        solutions[i]._s = step;
+                        localStorage.setItem('solutions', JSON.stringify(solutions));
+                    }
+                }
+                if (!find) {
+                    solutions.push({ '_r': key, '_s': step });
+                    localStorage.setItem('solutions', JSON.stringify(solutions));
+                }
+            } else {
+                localStorage.setItem('solutions', JSON.stringify({ '_r': key, '_s': step }));
+            }
+            document.getElementById("solution_data").value = 'Ok!';
+            loadSolutions();
+        }
+
+        function exportSolution(layout){
+            let solution = localStorage.getItem(layout);
+            let data=layout+"#"+solution;
+            document.getElementById("solution_data").value=data;
+        }
+
+        function loadSolutions() {
+            let solutions = JSON.parse(localStorage.getItem('solutions'));
+            if (solutions !== null) {
+                if (!Array.isArray(solutions))
+                    solutions = [solutions];
+                SolutionList.innerHTML = '';
+                for (let r of solutions) {
+                    let key = r._r;
+                    let stepStr = ("00" + r._s).slice(-3);
+                    let msg = '[' + key + ']#[' + stepStr + 'Moves]';
+                    msg += '<span class="button" onclick="exportSolution(\'' + key + '\')">Data</span>';
+                    msg += '<span class="button" onclick="startPlayer(\'' + key + '\')">Play/Pause</span>';
+
+                    let entry = document.createElement('LI');
+                    entry.innerHTML = msg;
+                    SolutionList.appendChild(entry);
+                }
+            }
+        }
+
+        function clearStorage() {
+            let solutions = JSON.parse(localStorage.getItem('solutions'));
+            if (solutions !== null) {
+                if (!Array.isArray(solutions))
+                    solutions = [solutions];
+                for (let r of solutions) {
+                    localStorage.removeItem(r._r);
+                }
+                localStorage.removeItem('solutions');
+                Context.clearRect(0, 0, 4 * UNIT, 5 * UNIT);
+            }
+            SolutionList.innerHTML = '';
+            document.getElementById("solution_data").value = '';
+        }
+
+        /*code for player*/
+
+        var DATA, player, frame, step, map, target;
+
+        function startPlayer(layout) {
+            if (layout !== DATA) {
+                DATA = layout;
+                start();
+                let p = JSON.parse(localStorage.getItem(DATA));
+                player = setInterval(function () {
+                    let tuple = p[frame++];
+                    if (Array.isArray(tuple)) {
+                        highlightTarget(false);
+                        target = tuple[0];
+                        highlightTarget(true);
+                        return;
+                    }
+                    switch (tuple) {
+                        case 0:
+                            moveLeft();
+                            break;
+                        case 1:
+                            moveUp();
+                            break;
+                        case 2:
+                            moveRight();
+                            break;
+                        case 3:
+                            moveDown();
+                            break;
+                    }
+                    if (frame === p.length) {
+                        clearInterval(player);
+                        player = null;
+                        frame = 0;
+                    }
+                }.bind(this), 300);
+                return;
+            }
+            if (frame !== 0 && player !== null) {
+                clearInterval(player);
+                player = null;
+                return;
+            } else {
+                let p = JSON.parse(localStorage.getItem(DATA));
+                player = setInterval(function () {
+                    let tuple = p[frame++];
+                    if (Array.isArray(tuple)) {
+                        highlightTarget(false);
+                        target = tuple[0];
+                        highlightTarget(true);
+                        return;
+                    }
+                    switch (tuple) {
+                        case 0:
+                            moveLeft();
+                            break;
+                        case 1:
+                            moveUp();
+                            break;
+                        case 2:
+                            moveRight();
+                            break;
+                        case 3:
+                            moveDown();
+                            break;
+                    }
+                    if (frame === p.length) {
+                        clearInterval(player);
+                        player = null;
+                        frame = 0;
+                    }
+                }.bind(this), 300);
+            }
+        }
+
+        function stopPlayer() {
+            if (player !== null) {
+                clearInterval(player);
+                player = null;
+            }
+        }
+
+        function start() {
+            player = null;
+            frame = 0;
+            step = -1;
+            map = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            target = -1;
+            setBlocks();
+            setStepLabel();
+        }
+
+        function setBlocks() {
+            Context.clearRect(0, 0, 4 * UNIT, 5 * UNIT);
+            Context.fillStyle = '#fb4934';
+            for (let idx = 0; idx < 20; idx++) {
+                if (map[idx] !== 0) {
+                    continue;
+                }
+                map[idx] = parseInt(DATA[idx]);
+                if (map[idx] !== 0) {
+                    drawBlock(idx);
+                }
+                switch (map[idx]) {
+                    case 2:
+                        map[idx + 4] = 2;
+                        break;
+                    case 3:
+                        map[idx + 1] = 3;
+                        break;
+                    case 4:
+                        map[idx + 1] = 4;
+                        map[idx + 4] = 4;
+                        map[idx + 5] = 4;
+                }
+            }
+        }
+
+        function drawBlock(idx) {
+            let row = parseInt(idx / 4), col = idx % 4, bType = map[idx];
+            Context.fillRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+        }
+
+        function clearBlock(idx, bType) {
+            let row = parseInt(idx / 4), col = idx % 4;
+            Context.clearRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+        }
+
+        function setStepLabel() {
+            StepLabel.innerText = "步: " + ("00" + ++step).slice(-3);
+        }
+
+        function highlightTarget(flag) {
+            if (target === -1)
+                return;
+            let row = parseInt(target / 4), col = target % 4, bType = map[target];
+            if (flag) {
+                Context.fillStyle = '#cc241d';
+                Context.fillRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+                Context.fillStyle = '#fb4934';
+            } else {
+                Context.fillStyle = '#fb4934';
+                Context.fillRect(col * UNIT + 1, row * UNIT + 1, BW[bType] * UNIT - 1, BH[bType] * UNIT - 1);
+                Context.fillStyle = '#cc241d';
+            }
+        }
+
+        function moveLeft() {
+            let col = target % 4, bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (col <= 0 || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target - 1] = 1;
+                    break;
+                case 2:
+                    if (col <= 0 || map[target - 1] !== map[target + 3] || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target - 1] = map[target + 3] = 2;
+                    map[target] = map[target + 4] = 0;
+                    break;
+                case 3:
+                    if (col <= 0 || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target + 1] = 0;
+                    map[target - 1] = 3;
+                    break;
+                case 4:
+                    if (col <= 0 || map[target - 1] !== map[target + 3] || map[target - 1] !== 0) {
+                        return;
+                    }
+                    map[target - 1] = map[target + 3] = 4;
+                    map[target + 1] = map[target + 5] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target - 1;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            setStepLabel();
+        }
+
+        function moveUp() {
+            let row = parseInt(target / 4), bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (row <= 0 || map[target - 4] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target - 4] = 1;
+                    break;
+                case 2:
+                    if (row <= 0 || map[target - 4] !== 0) {
+                        return;
+                    }
+                    map[target + 4] = 0;
+                    map[target - 4] = 2;
+                    break;
+                case 3:
+                    if (row <= 0 || map[target - 4] !== map[target - 3] || map[target - 3] !== 0) {
+                        return;
+                    }
+                    map[target - 4] = map[target - 3] = 3;
+                    map[target] = map[target + 1] = 0;
+                    break;
+                case 4:
+                    if (row <= 0 || map[target - 4] !== map[target - 3] || map[target - 3] !== 0) {
+                        return;
+                    }
+                    map[target - 4] = map[target - 3] = 4;
+                    map[target + 4] = map[target + 5] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target - 4;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            setStepLabel();
+        }
+
+        function moveRight() {
+            let col = target % 4, bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (col >= 3 || map[target + 1] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 1] = 1;
+                    break;
+                case 2:
+                    if (col >= 3 || map[target + 1] !== map[target + 5] || map[target + 1] !== 0) {
+                        return;
+                    }
+                    map[target + 1] = map[target + 5] = 2;
+                    map[target] = map[target + 4] = 0;
+                    break;
+                case 3:
+                    if (col >= 2 || map[target + 2] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 2] = 3;
+                    break;
+                case 4:
+                    if (col >= 2 || map[target + 2] !== map[target + 6] || map[target + 6] !== 0) {
+                        return;
+                    }
+                    map[target + 2] = map[target + 6] = 4;
+                    map[target] = map[target + 4] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target + 1;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            setStepLabel();
+        }
+
+        function moveDown() {
+            let row = parseInt(target / 4), bType = map[target];
+            switch (bType) {
+                case 1:
+                    if (row >= 4 || map[target + 4] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 4] = 1;
+                    break;
+                case 2:
+                    if (row >= 3 || map[target + 8] !== 0) {
+                        return;
+                    }
+                    map[target] = 0;
+                    map[target + 8] = 2;
+                    break;
+                case 3:
+                    if (row >= 4 || map[target + 4] !== map[target + 5] || map[target + 5] !== 0) {
+                        return;
+                    }
+                    map[target + 4] = map[target + 5] = 3;
+                    map[target] = map[target + 1] = 0;
+                    break;
+                case 4:
+                    if (row >= 3 || map[target + 8] !== map[target + 9] || map[target + 9] !== 0) {
+                        return;
+                    }
+                    map[target + 8] = map[target + 9] = 4;
+                    map[target] = map[target + 1] = 0;
+            }
+            clearBlock(target, bType);
+            Context.fillStyle = '#cc241d';
+            target = target + 4;
+            drawBlock(target);
+            Context.fillStyle = '#fb4934';
+            setStepLabel();
+        }
+
+        loadSolutions();
+    </script>
+</body>
+
+</html>
